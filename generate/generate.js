@@ -181,7 +181,7 @@ function returnSignature(ret) {
     return '(' + ret.map(r => mapType(r.type)).join(', ') + ')';
 }
 
-function emitFunction(indent, fn, { isStatic = false, inModule = false } = {}) {
+function emitFunction(indent, fn, { isStatic = false, inModule = false, keyword = 'function' } = {}) {
     const out = [];
     const doc = emitDoc(indent, fn.description || fn.description_long);
     if (doc) out.push(doc.trimEnd());
@@ -192,7 +192,7 @@ function emitFunction(indent, fn, { isStatic = false, inModule = false } = {}) {
     const sig = paramSignature(fn.parameters);
     const ret = returnSignature(fn.return);
     const prefix = inModule ? '' : (isStatic ? 'static ' : '');
-    out.push(`${indent}${prefix}function ${safeIdent(fn.name)}(${sig}): ${ret}`);
+    out.push(`${indent}${prefix}${keyword} ${safeIdent(fn.name)}(${sig}): ${ret}`);
     return out.join('\n');
 }
 
@@ -289,7 +289,7 @@ function emitRootInterface(klass) {
     const out = [];
     out.push(`declare interface ${ROOT_INTERFACE}`);
     for (const p of klass.properties || []) out.push(emitProperty('    ', p));
-    for (const f of klass.functions || []) out.push(emitFunction('    ', f));
+    for (const f of klass.functions || []) out.push(emitFunction('    ', f, { keyword: 'method' }));
     out.push('end');
     return out.join('\n');
 }
@@ -310,7 +310,7 @@ function emitMixinInterface(klass) {
     out.push(header);
 
     for (const p of klass.properties || []) out.push(emitProperty('    ', p));
-    for (const f of klass.functions || []) out.push(emitFunction('    ', f));
+    for (const f of klass.functions || []) out.push(emitFunction('    ', f, { keyword: 'method' }));
 
     out.push('end');
     return out.join('\n');
