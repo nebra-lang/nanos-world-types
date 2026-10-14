@@ -157,8 +157,31 @@ function emitDoc(indent, desc) {
     const cleaned = cleanDesc(desc);
     if (!cleaned) return '';
     return cleaned.split('\n')
-        .map(l => `${indent}-- ${l.trim()}`)
+        .map(l => `${indent}--- ${l.trim()}`)
         .join('\n') + '\n';
+}
+
+// The LuaCATS doc of a function: its description, then a @param line per described
+// parameter and a @return line per described return value.
+function emitSignatureDoc(indent, fn) {
+    const lines = [];
+    const doc = emitDoc(indent, fn.description || fn.description_long);
+    if (doc) lines.push(doc.trimEnd());
+
+    for (const p of fn.parameters || []) {
+        const description = cleanDesc(p.description).replace(/\n+/g, ' ');
+        if (!description) continue;
+        const name = (p.name || '').endsWith('...') ? '...' : safeIdent(p.name);
+        lines.push(`${indent}--- @param ${name} ${mapType(p.type)} ${description}`);
+    }
+
+    for (const r of fn.return || []) {
+        const description = cleanDesc(r.description).replace(/\n+/g, ' ');
+        if (!description) continue;
+        lines.push(`${indent}--- @return ${mapType(r.type)} ${description}`);
+    }
+
+    return lines.join('\n');
 }
 
 function paramSignature(params) {
@@ -183,8 +206,8 @@ function returnSignature(ret) {
 
 function emitFunction(indent, fn, { isStatic = false, inModule = false, keyword = 'function' } = {}) {
     const out = [];
-    const doc = emitDoc(indent, fn.description || fn.description_long);
-    if (doc) out.push(doc.trimEnd());
+    const doc = emitSignatureDoc(indent, fn);
+    if (doc) out.push(doc);
 
     const sideLine = memberSideLine(indent, fn.authority);
     if (sideLine) out.push(sideLine.trimEnd());
@@ -411,8 +434,8 @@ function emitStaticClass(sc, { iface = null } = {}) {
         // @side when the method's authority differs from the class default,
         // so e.g. Chat.* (top-level `both` ⇒ shared) still gates its
         // client-only / server-only methods.
-        const doc = emitDoc('    ', f.description || f.description_long);
-        if (doc) out.push(doc.trimEnd());
+        const doc = emitSignatureDoc('    ', f);
+        if (doc) out.push(doc);
         const memberSide = memberSideLine('    ', f.authority);
         if (memberSide && authoritySide(f.authority) !== side) out.push(memberSide.trimEnd());
         out.push(`    function ${safeIdent(f.name)}(${paramSignature(f.parameters)}): ${returnSignature(f.return)}`);
