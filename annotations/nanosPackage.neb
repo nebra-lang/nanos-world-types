@@ -16,14 +16,14 @@ export local annotation = {
     params = {}
 }
 
-local DISPATCH = {
-    Event           = { object = "Events",  method = "Subscribe"        },
-    RemoteEvent     = { object = "Events",  method = "SubscribeRemote"  },
-    PlayerEvent     = { object = "Player",  method = "Subscribe"        },
-    CharacterEvent  = { object = "Character", method = "Subscribe"      },
-    EntityEvent     = { object = "Entity",  method = "Subscribe"        },
-    Command         = { object = "Chat",    method = "Subscribe"        },
-    ConsoleCommand  = { object = "Console", method = "RegisterCommand"  },
+local DISPATCH: { [string]: { object: string, method: string } } = {
+    ["Event"]           = { object = "Events",  method = "Subscribe"        },
+    ["RemoteEvent"]     = { object = "Events",  method = "SubscribeRemote"  },
+    ["PlayerEvent"]     = { object = "Player",  method = "Subscribe"        },
+    ["CharacterEvent"]  = { object = "Character", method = "Subscribe"      },
+    ["EntityEvent"]     = { object = "Entity",  method = "Subscribe"        },
+    ["Command"]         = { object = "Chat",    method = "Subscribe"        },
+    ["ConsoleCommand"]  = { object = "Console", method = "RegisterCommand"  },
 }
 
 local function firstStringArg(ann)
