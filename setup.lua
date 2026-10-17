@@ -32,6 +32,7 @@ project.writeConfig("nebra.toml", {
     -- types-only consumer side. Disable until the project ships its own
     -- library API.
     generate_declarations = false,
+    runtime_export = "Package.Export(%name, %value)",
     dependencies = {
         ["nanos-world-types"] = "github:nebra-lang/nanos-world-types",
     },
