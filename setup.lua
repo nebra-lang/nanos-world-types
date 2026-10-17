@@ -44,6 +44,7 @@ project.writeConfig("nebra.toml", {
         -- from the source path, then `import_extension` appends `.lua`.
         import_statement = 'Package.Require(%s)',
         import_extension = ".lua",
+        import_path = "root",
         -- Annotation IR helpers use Lua's native 1-based indexing; keep the
         -- consumer side aligned so `array[1]` means "first element" the way
         -- a Lua dev expects.
