@@ -70,25 +70,47 @@ project.writeConfig("nebra.toml", {
 local packageToml = [[
 # nanos-world Package manifest. Reference:
 # https://docs.nanos-world.com/docs/core-concepts/packages/packages-guide
+#
+# The section after [meta] sets the package type: [game_mode] here. Rename it to
+# [script] for a script package (and drop compatible_maps), to [map] or to
+# [loading_screen] for the other package types.
 
+# vault configurations
 [meta]
-title = "%s"
-type = "game-mode"
-author = ""
-version = "0.1.0"
-description = ""
-image = ""
-force_no_map_package_replacement = false
+    # friendly name
+    title =                 "%s"
+    # contributors
+    author =                ""
+    # version
+    version =               "0.1.0"
 
-[compatibility]
-client = true
-server = true
+# game-mode configurations
+[game_mode]
+    # whether to force the custom map package to do not load
+    force_no_map_package =  false
+    # auto destroy all entities spawned by this package when it unloads
+    auto_cleanup =          true
+    # whether to load all level entities on client - only enable it if your package needs to use level static meshes entities
+    load_level_entities =   false
+    # the game version (major.minor) at the time this package was created, for granting compatibility between breaking changes
+    compatibility_version = "1.157"
+    # packages requirements
+    packages_requirements = [
 
-[server_config]
-# add server-only config here
+    ]
+    # asset packs requirements
+    assets_requirements = [
 
-[client_config]
-# add client-only config here
+    ]
+    # compatible maps - maps to be highlighted when starting a new game through main menu
+    compatible_maps = [
+
+    ]
+
+# game-mode custom settings configurations
+# those settings can be configured through new game menu, Config.toml and server command line
+# and can be accessed through Server.GetCustomSettings() method from any package
+[custom_settings]
 ]]
 
 project.writeFile("Package.toml", packageToml:format(projectName))
