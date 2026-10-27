@@ -204,7 +204,7 @@ function returnSignature(ret) {
     return '(' + ret.map(r => mapType(r.type)).join(', ') + ')';
 }
 
-function emitFunction(indent, fn, { isStatic = false, inModule = false, keyword = 'function' } = {}) {
+function emitFunction(indent, fn, { isStatic = false, inModule = false, keyword = 'function', events = null } = {}) {
     const out = [];
     const doc = emitSignatureDoc(indent, fn);
     if (doc) out.push(doc);
@@ -212,11 +212,82 @@ function emitFunction(indent, fn, { isStatic = false, inModule = false, keyword 
     const sideLine = memberSideLine(indent, fn.authority);
     if (sideLine) out.push(sideLine.trimEnd());
 
-    const sig = paramSignature(fn.parameters);
-    const ret = returnSignature(fn.return);
     const prefix = inModule ? '' : (isStatic ? 'static ' : '');
-    out.push(`${indent}${prefix}${keyword} ${safeIdent(fn.name)}(${sig}): ${ret}`);
+    out.push(`${indent}${prefix}${keyword} ${safeIdent(fn.name)}${functionSignature(fn, events)}`);
     return out.join('\n');
+}
+
+// The parameter list and return type of a function. Subscribe of a type with events takes
+// the name of one of them and a callback typed by the event it names.
+function functionSignature(fn, events) {
+    if (events && fn.name === 'Subscribe') {
+        return `<K extends keyof ${events}>(event_name: K, callback: ${events}[K]): function`;
+    }
+    return `(${paramSignature(fn.parameters)}): ${returnSignature(fn.return)}`;
+}
+
+// The name of the interface holding the events of a type.
+function eventsInterfaceName(typeName) {
+    return `${typeName}Events`;
+}
+
+// The events a class receives: those of every type it descends from, then its own, a later
+// declaration of an event replacing an earlier one.
+function collectEvents(klass, index, seen = new Set()) {
+    const events = new Map();
+    if (seen.has(klass.name)) return events;
+    seen.add(klass.name);
+
+    for (const parent of klass.inheritance || []) {
+        const file = (index.Classes || {})[parent];
+        if (!file) continue;
+        for (const [name, event] of collectEvents(loadJson(`Classes/${file}`), index, seen)) events.set(name, event);
+    }
+    for (const event of klass.events || []) events.set(event.name, event);
+    return events;
+}
+
+// The callback type of an event, with the `self` it passes typed as the type subscribed on.
+// An event whose callback may return a value, such as one that cancels it, takes it
+// optionally; any other callback may return anything, which nanos ignores.
+function eventCallbackType(event, selfType) {
+    const args = (event.arguments || []).map((argument, i) =>
+        i === 0 && argument.name === 'self' ? selfType : mapType(argument.type));
+    const returned = (event.return || [])[0];
+    let ret = 'any';
+    if (returned) {
+        ret = mapType(returned.type);
+        if (ret !== 'any' && !ret.endsWith('?')) ret += '?';
+    }
+    return `(${args.join(', ')}) -> ${ret}`;
+}
+
+// The interface holding one field per event of a type, each typed as its callback, which
+// Subscribe takes its event names and callback types from.
+function emitEventsInterface(typeName, events, selfType) {
+    const out = [`declare interface ${eventsInterfaceName(typeName)}`];
+    for (const event of events.values()) {
+        const doc = emitSignatureDoc('    ', { description: event.description, parameters: event.arguments, return: event.return });
+        if (doc) out.push(doc);
+        const name = /^[A-Za-z_][A-Za-z0-9_]*$/.test(event.name) ? event.name : JSON.stringify(event.name);
+        out.push(`    ${name}: ${eventCallbackType(event, selfType)}`);
+    }
+    out.push('end');
+    return out.join('\n');
+}
+
+// The Subscribe a class or mixin redeclares so that, on it, it takes its own events,
+// inherited ones included, rather than only those of Entity.
+function emitEventFunctions(indent, base, events, { keyword = 'function', withStatic = false } = {}) {
+    const out = [];
+    for (const fn of base.functions || []) {
+        if (fn.name === 'Subscribe') out.push(emitFunction(indent, fn, { keyword, events }));
+    }
+    if (!withStatic) return out;
+    for (const fn of base.static_functions || []) {
+        if (fn.name === 'Subscribe') out.push(emitFunction(indent, fn, { isStatic: true, events }));
+    }
+    return out;
 }
 
 function emitConstructor(indent, ctor) {
@@ -274,6 +345,11 @@ function emitProperty(indent, prop, { isStatic = false } = {}) {
 // emitted as an interface the class `implements`. Filled by collectMixins().
 const MIXINS = new Set();
 
+// The API index and the Entity spec, whose Subscribe every type with events
+// redeclares. Filled in main().
+let API_INDEX = null;
+let ROOT_SPEC = null;
+
 // Every class descends from Entity, and Entity carries static functions that
 // subclasses inherit (`Character.GetAll()`), so it has to stay a class. A
 // mixin interface cannot extend a class, which would leave a mixin-typed value
@@ -310,9 +386,10 @@ function mixinInterfaceBases(klass) {
 // class implements and every mixin extends.
 function emitRootInterface(klass) {
     const out = [];
+    const events = eventsInterfaceName(klass.name);
     out.push(`declare interface ${ROOT_INTERFACE}`);
     for (const p of klass.properties || []) out.push(emitProperty('    ', p));
-    for (const f of klass.functions || []) out.push(emitFunction('    ', f, { keyword: 'method' }));
+    for (const f of klass.functions || []) out.push(emitFunction('    ', f, { keyword: 'method', events }));
     out.push('end');
     return out.join('\n');
 }
@@ -321,6 +398,12 @@ function emitRootInterface(klass) {
 // operators - so it maps onto a `declare interface` one to one.
 function emitMixinInterface(klass) {
     const out = [];
+    const events = collectEvents(klass, API_INDEX);
+    if (events.size > 0) {
+        out.push(emitEventsInterface(klass.name, events, klass.name));
+        out.push('');
+    }
+
     const doc = emitDoc('', klass.description);
     if (doc) out.push(doc.trimEnd());
 
@@ -334,6 +417,10 @@ function emitMixinInterface(klass) {
 
     for (const p of klass.properties || []) out.push(emitProperty('    ', p));
     for (const f of klass.functions || []) out.push(emitFunction('    ', f, { keyword: 'method' }));
+    if (events.size > 0) {
+        const typed = eventsInterfaceName(klass.name);
+        out.push(...emitEventFunctions('    ', ROOT_SPEC, typed, { keyword: 'method' }));
+    }
 
     out.push('end');
     return out.join('\n');
@@ -344,6 +431,13 @@ function emitClass(klass) {
     if (klass.name === ROOT_CLASS) return emitRootClass(klass);
 
     const out = [];
+    const events = collectEvents(klass, API_INDEX);
+    const descendsFromRoot = (klass.inheritance || []).length > 0;
+    if (events.size > 0 && descendsFromRoot) {
+        out.push(emitEventsInterface(klass.name, events, klass.name));
+        out.push('');
+    }
+
     const doc = emitDoc('', klass.description);
     if (doc) out.push(doc.trimEnd());
 
@@ -385,6 +479,9 @@ function emitClass(klass) {
         const line = emitOperator('    ', op);
         if (line) out.push(line);
     }
+    if (events.size > 0 && descendsFromRoot) {
+        out.push(...emitEventFunctions('    ', ROOT_SPEC, eventsInterfaceName(klass.name), { withStatic: true }));
+    }
 
     out.push('end');
     return out.join('\n');
@@ -394,6 +491,8 @@ function emitClass(klass) {
 // and takes the rest from the shared root interface it implements.
 function emitRootClass(klass) {
     const out = [];
+    out.push(emitEventsInterface(klass.name, collectEvents(klass, API_INDEX), klass.name));
+    out.push('');
     out.push(emitRootInterface(klass));
     out.push('');
 
@@ -404,8 +503,9 @@ function emitRootClass(klass) {
     if (classSide) out.push(`@side(${classSide})`);
 
     out.push(`declare class ${klass.name} implements ${ROOT_INTERFACE}`);
+    const events = eventsInterfaceName(klass.name);
     for (const p of klass.static_properties || []) out.push(emitProperty('    ', p, { isStatic: true }));
-    for (const f of klass.static_functions || []) out.push(emitFunction('    ', f, { isStatic: true }));
+    for (const f of klass.static_functions || []) out.push(emitFunction('    ', f, { isStatic: true, events }));
     out.push('end');
     return out.join('\n');
 }
@@ -415,6 +515,13 @@ function emitStaticClass(sc, { iface = null } = {}) {
     // members + a `declare <name>: <Interface>` instance.
     const ifname = iface || `${sc.name}__Static`;
     const out = [];
+    const hasSubscribe = (sc.static_functions || []).some(f => f.name === 'Subscribe');
+    const events = hasSubscribe && (sc.events || []).length > 0 ? eventsInterfaceName(sc.name) : null;
+    if (events) {
+        out.push(emitEventsInterface(sc.name, new Map(sc.events.map(e => [e.name, e])), sc.name));
+        out.push('');
+    }
+
     const doc = emitDoc('', sc.description);
     if (doc) out.push(doc.trimEnd());
 
@@ -438,7 +545,7 @@ function emitStaticClass(sc, { iface = null } = {}) {
         if (doc) out.push(doc);
         const memberSide = memberSideLine('    ', f.authority);
         if (memberSide && authoritySide(f.authority) !== side) out.push(memberSide.trimEnd());
-        out.push(`    function ${safeIdent(f.name)}(${paramSignature(f.parameters)}): ${returnSignature(f.return)}`);
+        out.push(`    function ${safeIdent(f.name)}${functionSignature(f, events)}`);
     }
     out.push('end');
     if (side) out.push(`@side(${side})`);
@@ -475,6 +582,8 @@ function main() {
     const index = loadJson('APIFiles.json');
     collectKnownTypes(index);
     collectMixins(index);
+    API_INDEX = index;
+    ROOT_SPEC = loadJson(`Classes/${index.Classes[ROOT_CLASS]}`);
     const parts = [];
 
     parts.push('-- Auto-generated from the nanos-world api JSON specs.');

@@ -1159,6 +1159,23 @@ end
 -- Classes
 -- ========================================================================
 
+declare interface EntityEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Entity) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Entity) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Entity, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+end
+
 declare interface EntityBase
     --- Finish the spawning process and send the entity to clients if it was spawned with a deferred `spawn_mode`
     @side(shared)
@@ -1197,7 +1214,7 @@ declare interface EntityBase
     --- @param callback any Function to call when the event is triggered
     --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
     @side(shared)
-    method Subscribe(event_name: string, callback: any): any
+    method Subscribe<K extends keyof EntityEvents>(event_name: K, callback: EntityEvents[K]): function
     --- Subscribes to a custom event called from server on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -1310,7 +1327,7 @@ declare class Entity implements EntityBase
     --- @param callback any Function to call when the event is triggered
     --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
     @side(shared)
-    static function Subscribe(event_name: string, callback: any): any
+    static function Subscribe<K extends keyof EntityEvents>(event_name: K, callback: EntityEvents[K]): function
     --- Subscribes to a custom event called from server
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -1322,6 +1339,38 @@ declare class Entity implements EntityBase
     --- @param callback any Optional callback to unsubscribe
     @side(shared)
     static function Unsubscribe(event_name: string, callback: any?): nil
+end
+
+declare interface ActorEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Actor) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Actor) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Actor, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Actor, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Actor, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Actor) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Actor) -> any
 end
 
 --- An Actor is an object which can be spawned and destroyed through Lua.
@@ -1425,6 +1474,10 @@ declare interface Actor extends EntityBase
     --- @param cast_shadow boolean The new to cast shadows or not
     @side(shared)
     method SetCastShadow(cast_shadow: boolean): nil
+    --- Sets whether taking damage (shots, melee, explosions) pushes this Actor's physics body
+    --- @param impulse_on_damage boolean Whether taking damage pushes this Actor
+    @side(shared)
+    method SetImpulseOnDamage(impulse_on_damage: boolean): nil
     --- Sets the Player to have network authority over this Actor
     --- @param player Player New player which will assume the Network Authority of this Actor
     @side(server)
@@ -1443,6 +1496,16 @@ declare interface Actor extends EntityBase
     --- @param time number Time to interpolate from current location to target location
     --- @param exp number Exponent used to smooth interpolation. Use `0` for linear movement
     method RotateTo(rotation: Rotator, time: number, exp: number?): nil
+    --- Smoothly moves this attached actor to a location relative to its parent over a certain time
+    --- @param relative_location Vector The target location, relative to the parent
+    --- @param time number Time to interpolate from current location to target location
+    --- @param exp number Exponent used to smooth interpolation. Use `0` for linear movement
+    method TranslateRelativeTo(relative_location: Vector, time: number, exp: number?): nil
+    --- Smoothly rotates this attached actor to an angle relative to its parent over a certain time
+    --- @param relative_rotation Rotator The target rotation, relative to the parent
+    --- @param time number Time to interpolate from current location to target location
+    --- @param exp number Exponent used to smooth interpolation. Use `0` for linear movement
+    method RotateRelativeTo(relative_rotation: Rotator, time: number, exp: number?): nil
     --- Returns true if this Actor is visible
     --- @return boolean Whether this Actor is visible
     @side(shared)
@@ -1451,6 +1514,10 @@ declare interface Actor extends EntityBase
     --- @return boolean Whether gravity is enabled on this Actor
     @side(shared)
     method IsGravityEnabled(): boolean
+    --- Returns true if taking damage pushes this Actor's physics body
+    --- @return boolean Whether taking damage pushes this Actor
+    @side(shared)
+    method IsImpulseOnDamage(): boolean
     --- Returns true if this Actor is in water
     --- @return boolean Whether this Actor is in water
     @side(shared)
@@ -1548,6 +1615,74 @@ declare interface Actor extends EntityBase
     --- @return number Percentage of this Actor size in the screen
     @side(client)
     method GetScreenPercentage(): number
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    method Subscribe<K extends keyof ActorEvents>(event_name: K, callback: ActorEvents[K]): function
+end
+
+declare interface PickableEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Pickable) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Pickable) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Pickable, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Pickable, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Pickable, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Pickable) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Pickable) -> any
+    --- When a Character drops this Pickable
+    --- @param self Pickable The Pickable which has been dropped
+    --- @param character Character The Character that dropped it
+    --- @param was_triggered_by_player boolean If the Player actively pressed the Drop binding to drop
+    Drop: (Pickable, Character, boolean) -> any
+    --- When this Pickable hits something
+    --- @param self Pickable The Actor that was hit
+    --- @param impact_force number The intensity of the hit normalized by the Pickable's weight
+    --- @param normal_impulse Vector The impulse direction of the hit
+    --- @param impact_location Vector The world space location of the impact
+    --- @param velocity Vector The Pickable's velocity at the moment it hit
+    --- @param other_actor Actor? The other actor that hit this Pickable
+    Hit: (Pickable, number, Vector, Vector, Vector, Actor?) -> any
+    --- Triggered when a Character interacts with this Pickable (i.e. tries to pick it up)
+    --- @param self Pickable The Pickable that just got interacted with
+    --- @param character Character The Character that interacted with it
+    --- @return boolean Return `false` to prevent the interaction
+    Interact: (Pickable, Character) -> boolean?
+    --- Triggered When a Character picks this up
+    --- @param self Pickable The Pickable that just got picked up
+    --- @param character Character The Character that picked it up
+    PickUp: (Pickable, Character) -> any
+    --- Triggered when a Character presses the use button for this Pickable (i.e. clicks left mouse button with this equipped)
+    --- @param self Pickable The Pickable which has just been used
+    --- @param character Character The Character that used it
+    PullUse: (Pickable, Character) -> any
+    --- Triggered when a Character releases the use button for this Pickable (i.e. releases left mouse button with this equipped)
+    --- @param self Pickable The Pickable which has just stopped being used
+    --- @param character Character The Character that stopped using it
+    ReleaseUse: (Pickable, Character) -> any
 end
 
 --- Pickables are special Actors which can be grabbed, held and used by Characters.
@@ -1616,9 +1751,9 @@ declare interface Pickable extends EntityBase, Actor, Paintable
     @side(server)
     method SetAttachmentSettings(relative_location: Vector, relative_rotation: Rotator?, socket: string?): nil
     --- Sets the crosshair material for this Pickable
-    --- @param material_asset string Asset path to the crosshair material
+    --- @param material_asset string Asset path to the crosshair material, pass nil or an empty string for no crosshair
     @side(server)
-    method SetCrosshairMaterial(material_asset: string): nil
+    method SetCrosshairMaterial(material_asset: string?): nil
     --- Sets if this Pickable can be picked up from ground by the player
     --- @param is_pickable boolean Whether this Pickable can be picked up from ground by the player
     @side(server)
@@ -1648,6 +1783,44 @@ declare interface Pickable extends EntityBase, Actor, Paintable
     --- @param buoyancy_damp number First order damping on the vertical velocity, reduces bobbing
     --- @param max_buoyant_force number Clamp on the upwards force, stops light objects being launched out of the water
     method SetBuoyancySettings(enabled: boolean?, buoyancy_coefficient: number?, buoyancy_damp: number?, max_buoyant_force: number?): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    method Subscribe<K extends keyof PickableEvents>(event_name: K, callback: PickableEvents[K]): function
+end
+
+declare interface PaintableEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Paintable) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Paintable) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Paintable, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Paintable, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Paintable, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Paintable) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Paintable) -> any
 end
 
 --- Base class for all Paintable entities. This class provides customization for materials, exposing common functions to allow you to set custom material parameters, including loading textures from disk.
@@ -1661,18 +1834,21 @@ declare interface Paintable extends EntityBase, Actor
     --- Sets the material at the specified index of this Actor to a Canvas object
     --- @param canvas Canvas The Canvas object to use as a material
     --- @param index number The material index to apply (`-1` means all indices)
+    --- @param attachable_id string The attachable ID (set with `AddSkeletalMeshAttached` or `AddStaticMeshAttached`) to apply the material. Pass empty to set on main mesh only
     @side(client)
-    method SetMaterialFromCanvas(canvas: Canvas, index: number?): nil
+    method SetMaterialFromCanvas(canvas: Canvas, index: number?, attachable_id: string?): nil
     --- Sets the material at the specified index of this Actor to a SceneCapture object
     --- @param scene_capture SceneCapture The SceneCapture object to use as a material
     --- @param index number The material index to apply (`-1` means all indices)
+    --- @param attachable_id string The attachable ID (set with `AddSkeletalMeshAttached` or `AddStaticMeshAttached`) to apply the material. Pass empty to set on main mesh only
     @side(client)
-    method SetMaterialFromSceneCapture(scene_capture: SceneCapture, index: number?): nil
+    method SetMaterialFromSceneCapture(scene_capture: SceneCapture, index: number?, attachable_id: string?): nil
     --- Sets the material at the specified index of this Actor to a WebUI object
     --- @param webui WebUI The WebUI object to use as a material
     --- @param index number The material index to apply (`-1` means all indices)
+    --- @param attachable_id string The attachable ID (set with `AddSkeletalMeshAttached` or `AddStaticMeshAttached`) to apply the material. Pass empty to set on main mesh only
     @side(client)
-    method SetMaterialFromWebUI(webui: WebUI, index: number?): nil
+    method SetMaterialFromWebUI(webui: WebUI, index: number?, attachable_id: string?): nil
     --- Resets the material from the specified index to the original one
     --- @param index number The material index to apply (`-1` means all indices)
     --- @param attachable_id string The attachable ID (set with `AddSkeletalMeshAttached` or `AddStaticMeshAttached`) to reset the material. Pass empty to reset on main mesh only
@@ -1694,7 +1870,7 @@ declare interface Paintable extends EntityBase, Actor
     method SetMaterialScalarParameter(parameter_name: string, scalar: number, index: number?, attachable_id: string?): nil
     --- Sets a texture parameter in this Actor's material to an image
     --- @param parameter_name string The name of the material parameter
-    --- @param texture_path string The path to texture, a url or a base64
+    --- @param texture_path string The path to texture, a url or a base64. Files on disk are reloaded if overwritten since the last load
     --- @param index number The material index to apply (`-1` means all indices)
     --- @param attachable_id string The attachable ID (set with `AddSkeletalMeshAttached` or `AddStaticMeshAttached`) to apply the material parameter. Pass empty to set on main mesh only
     @side(shared)
@@ -1738,6 +1914,71 @@ declare interface Paintable extends EntityBase, Actor
     --- @param physical_material_path string The Physical Material to override
     @side(shared)
     method SetPhysicalMaterial(physical_material_path: string): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    method Subscribe<K extends keyof PaintableEvents>(event_name: K, callback: PaintableEvents[K]): function
+end
+
+declare interface DamageableEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Damageable) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Damageable) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Damageable, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Damageable, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Damageable, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Damageable) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Damageable) -> any
+    --- When Entity has its Health changed, or because took damage or manually set through scripting or respawning
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param old_health number Health before the change
+    --- @param new_health number Health after the change
+    HealthChange: (Damageable, number, number) -> any
+    --- When Entity Respawns
+    --- @param self Damageable The Damageable that triggered the event
+    Respawn: (Damageable) -> any
+    --- When Entity Dies
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param last_damage_taken number Damage of the hit that killed it
+    --- @param last_bone_damaged string Bone hit by the last damage
+    --- @param damage_type_reason DamageType Type of the damage that killed it
+    --- @param hit_from_direction Vector Direction the last damage came from
+    --- @param instigator Player? The Player responsible for the death, if any
+    --- @param causer Actor? The object which caused the damage
+    Death: (Damageable, number, string, DamageType, Vector, Player?, Actor?) -> any
+    --- Triggered when this Entity takes damage
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param damage number Amount of damage taken
+    --- @param bone string Damaged bone
+    --- @param type DamageType Damage Type
+    --- @param from_direction Vector Direction of the damage relative to the damaged actor
+    --- @param instigator Player The player which caused the damage
+    --- @param causer any The object which caused the damage
+    --- @return number Return the multiplier to the final damage. Return `0` to cancel the damage (will still display animations, particles and apply impact forces). The default `1.0`.
+    TakeDamage: (Damageable, number, string, DamageType, Vector, Player, any) -> number?
 end
 
 --- Base class for all Damageable entities. It provides Health and Damage related methods and events.
@@ -1787,6 +2028,106 @@ declare interface Damageable extends EntityBase, Actor
     --- @return number the damage multiplier of the bone
     @side(shared)
     method GetDamageMultiplier(bone_name: string): number
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    method Subscribe<K extends keyof DamageableEvents>(event_name: K, callback: DamageableEvents[K]): function
+end
+
+declare interface VehicleEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Vehicle) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Vehicle) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Vehicle, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Vehicle, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Vehicle, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Vehicle) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Vehicle) -> any
+    --- When Entity has its Health changed, or because took damage or manually set through scripting or respawning
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param old_health number Health before the change
+    --- @param new_health number Health after the change
+    HealthChange: (Vehicle, number, number) -> any
+    --- When Entity Respawns
+    --- @param self Damageable The Damageable that triggered the event
+    Respawn: (Vehicle) -> any
+    --- When Entity Dies
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param last_damage_taken number Damage of the hit that killed it
+    --- @param last_bone_damaged string Bone hit by the last damage
+    --- @param damage_type_reason DamageType Type of the damage that killed it
+    --- @param hit_from_direction Vector Direction the last damage came from
+    --- @param instigator Player? The Player responsible for the death, if any
+    --- @param causer Actor? The object which caused the damage
+    Death: (Vehicle, number, string, DamageType, Vector, Player?, Actor?) -> any
+    --- Triggered when this Entity takes damage
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param damage number Amount of damage taken
+    --- @param bone string Damaged bone
+    --- @param type DamageType Damage Type
+    --- @param from_direction Vector Direction of the damage relative to the damaged actor
+    --- @param instigator Player The player which caused the damage
+    --- @param causer any The object which caused the damage
+    --- @return number Return the multiplier to the final damage. Return `0` to cancel the damage (will still display animations, particles and apply impact forces). The default `1.0`.
+    TakeDamage: (Vehicle, number, string, DamageType, Vector, Player, any) -> number?
+    --- Triggered when Vehicle hits something
+    --- @param self Vehicle The Vehicle that triggered the event
+    --- @param impact_force number The intensity of the Hit normalized by the Vehicle's weight
+    --- @param normal_impulse Vector The impulse direction it hits
+    --- @param impact_location Vector The world 3D location of the impact
+    --- @param velocity Vector The Vehicle velocity at the moment it hits
+    --- @param other_actor Actor? The other actor that hit this Vehicle
+    Hit: (Vehicle, number, Vector, Vector, Vector, Actor?) -> any
+    --- Triggered when the engine starts
+    --- @param self Vehicle The Vehicle that triggered the event
+    EngineStart: (Vehicle) -> any
+    --- Triggered when the engine stops
+    --- @param self Vehicle The Vehicle that triggered the event
+    EngineStop: (Vehicle) -> any
+    --- Triggered when a Character fully enters the Vehicle
+    --- @param self Vehicle The Vehicle that triggered the event
+    --- @param character Character The Character
+    --- @param seat_index number The seat entered, 0 is the driver
+    CharacterEnter: (Vehicle, Character, number) -> any
+    --- Triggered when a Character fully leaves the Vehicle
+    --- @param self Vehicle The Vehicle that triggered the event
+    --- @param character Character The Character
+    --- @param seat_index number The seat left, 0 is the driver
+    CharacterLeave: (Vehicle, Character, number) -> any
+    --- Triggered when a Character attempts to enter the Vehicle
+    --- @param self Vehicle The Vehicle that triggered the event
+    --- @param character Character The Character
+    --- @param seat number The seat index
+    --- @return boolean Return false to prevent it
+    CharacterAttemptEnter: (Vehicle, Character, number) -> boolean?
+    --- Triggered when a Character attempts to leave the Vehicle
+    --- @param self Vehicle The Vehicle that triggered the event
+    --- @param character Character The Character
+    --- @return boolean Return false to prevent it
+    CharacterAttemptLeave: (Vehicle, Character) -> boolean?
 end
 
 --- Base class for all Vehicle entities.
@@ -1947,6 +2288,97 @@ declare interface Vehicle extends EntityBase, Actor, Paintable, Damageable
     --- @param buoyancy_damp number First order damping on the vertical velocity, reduces bobbing
     --- @param max_buoyant_force number Clamp on the upwards force, stops light objects being launched out of the water
     method SetBuoyancySettings(enabled: boolean?, buoyancy_coefficient: number?, buoyancy_damp: number?, max_buoyant_force: number?): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    method Subscribe<K extends keyof VehicleEvents>(event_name: K, callback: VehicleEvents[K]): function
+end
+
+declare interface PawnEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Pawn) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Pawn) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Pawn, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Pawn, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Pawn, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Pawn) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Pawn) -> any
+    --- When Entity has its Health changed, or because took damage or manually set through scripting or respawning
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param old_health number Health before the change
+    --- @param new_health number Health after the change
+    HealthChange: (Pawn, number, number) -> any
+    --- When Entity Respawns
+    --- @param self Damageable The Damageable that triggered the event
+    Respawn: (Pawn) -> any
+    --- When Entity Dies
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param last_damage_taken number Damage of the hit that killed it
+    --- @param last_bone_damaged string Bone hit by the last damage
+    --- @param damage_type_reason DamageType Type of the damage that killed it
+    --- @param hit_from_direction Vector Direction the last damage came from
+    --- @param instigator Player? The Player responsible for the death, if any
+    --- @param causer Actor? The object which caused the damage
+    Death: (Pawn, number, string, DamageType, Vector, Player?, Actor?) -> any
+    --- Triggered when this Entity takes damage
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param damage number Amount of damage taken
+    --- @param bone string Damaged bone
+    --- @param type DamageType Damage Type
+    --- @param from_direction Vector Direction of the damage relative to the damaged actor
+    --- @param instigator Player The player which caused the damage
+    --- @param causer any The object which caused the damage
+    --- @return number Return the multiplier to the final damage. Return `0` to cancel the damage (will still display animations, particles and apply impact forces). The default `1.0`.
+    TakeDamage: (Pawn, number, string, DamageType, Vector, Player, any) -> number?
+    --- When an Animation Montage Notify begins
+    --- @param self Pawn The Pawn that triggered the event
+    --- @param notify_name string Name of the Animation Notify
+    --- @param animation_name string Name of the Animation Montage that fired the notify
+    --- @param trigger_begin_time number Time in the animation when the notify begins, in seconds
+    --- @param trigger_end_time number Time in the animation when the notify ends, in seconds
+    AnimationBeginNotify: (Pawn, string, string, number, number) -> any
+    --- When an Animation Montage Notify ends
+    --- @param self Pawn The Pawn that triggered the event
+    --- @param notify_name string Name of the Animation Notify
+    --- @param animation_name string Name of the Animation Montage that fired the notify
+    --- @param trigger_begin_time number Time in the animation when the notify begins, in seconds
+    --- @param trigger_end_time number Time in the animation when the notify ends, in seconds
+    AnimationEndNotify: (Pawn, string, string, number, number) -> any
+    --- When this Pawn is possessed by a Player
+    --- @param self Pawn The Pawn that triggered the event
+    --- @param player Player The Player
+    Possess: (Pawn, Player) -> any
+    --- When this Pawn is unpossessed by a Player
+    --- @param self Pawn The Pawn that triggered the event
+    --- @param old_player Player The Player that was possessing this Pawn
+    UnPossess: (Pawn, Player) -> any
+    --- Called when AI reaches its destination, or when it fails
+    --- @param self Pawn The Pawn that triggered the event
+    --- @param succeeded boolean Whether it reached the destination
+    MoveComplete: (Pawn, boolean) -> any
 end
 
 --- Base class for all Pawn entities (Character and CharacterSimple).
@@ -2025,6 +2457,9 @@ declare interface Pawn extends EntityBase, Actor, Paintable, Damageable
     --- @param enabled boolean Whether to enable the RVO Avoidance
     --- @param avoidance_consideration_radius number The radius of the circle used to determine the avoidance distance
     method SetAIAvoidanceSettings(enabled: boolean, avoidance_consideration_radius: number?): nil
+    --- AI: Sets whether the AI brakes to a stop when finishing a movement, instead of stopping instantly
+    --- @param enabled boolean Whether to brake to a stop
+    method SetAIStopWithBraking(enabled: boolean): nil
     --- AI: Makes this Pawn walk to the Location
     --- @param location Vector The destination
     --- @param acceptance_radius number Distance from the destination considered as arrived
@@ -2094,6 +2529,30 @@ declare interface Pawn extends EntityBase, Actor, Paintable, Damageable
     --- @param relative_rotation Rotator Rotation of the mesh relative to the capsule
     --- @param is_visible boolean Whether the mesh is visible (useful for using retargeters using child meshes)
     method SetMeshSettings(relative_location: Vector?, relative_rotation: Rotator?, is_visible: boolean?): nil
+    --- Gets the Team of this Pawn
+    --- @return number The Team, 0 means no team
+    @side(shared)
+    method GetTeam(): number
+    --- Sets a Team which will disable damaging same Team Members
+    --- @param team number 0 is neutral and default
+    method SetTeam(team: number): nil
+    --- Sets the value of a Morph Target
+    --- @param name string Morph Target Name
+    --- @param value number The Morph Target weight, usually from 0 to 1
+    @side(shared)
+    method SetMorphTarget(name: string, value: number): nil
+    --- Returns the value of a Morph Target
+    --- @param name string Morph Target Name
+    --- @return number value of the Morph Target
+    @side(shared)
+    method GetMorphTarget(name: string): number
+    --- Clears all Morph Targets set on this Pawn's Mesh
+    @side(shared)
+    method ClearMorphTargets(): nil
+    --- Returns a table with all morph targets available
+    --- @return string[] table with all morph targets available
+    @side(client)
+    method GetAllMorphTargetNames(): string[]
     --- Changes the Gravity Scale
     --- @param gravity_scale number The new Gravity Scale
     method SetGravityScale(gravity_scale: number): nil
@@ -2123,6 +2582,44 @@ declare interface Pawn extends EntityBase, Actor, Paintable, Damageable
     --- @param braking_swimming number Deceleration when swimming without input
     --- @param braking_falling number Horizontal deceleration when falling without input
     method SetBrakingSettings(ground_friction: number?, braking_friction_factor: number?, braking_walking: number?, braking_flying: number?, braking_swimming: number?, braking_falling: number?): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    method Subscribe<K extends keyof PawnEvents>(event_name: K, callback: PawnEvents[K]): function
+end
+
+declare interface BillboardEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Billboard) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Billboard) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Billboard, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Billboard, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Billboard, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Billboard) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Billboard) -> any
 end
 
 --- A Billboard is a 2D Material that will be rendered always facing the camera.
@@ -2130,6 +2627,50 @@ end
 @side(client)
 declare class Billboard extends Entity implements Actor, Paintable
     constructor(location: Vector, material_asset: string, size: Vector2D?, size_in_screen_space: boolean?)
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof BillboardEvents>(event_name: K, callback: BillboardEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof BillboardEvents>(event_name: K, callback: BillboardEvents[K]): function
+end
+
+declare interface BlueprintEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Blueprint) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Blueprint) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Blueprint, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Blueprint, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Blueprint, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Blueprint) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Blueprint) -> any
 end
 
 --- A Blueprint Class allows spawning any Unreal Blueprint Actor in nanos world.
@@ -2163,6 +2704,50 @@ declare class Blueprint extends Entity implements Actor, Paintable
     --- @return any the value
     @side(client)
     function GetBlueprintPropertyValue(property_name: string): any
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof BlueprintEvents>(event_name: K, callback: BlueprintEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof BlueprintEvents>(event_name: K, callback: BlueprintEvents[K]): function
+end
+
+declare interface CableEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Cable) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Cable) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Cable, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Cable, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Cable, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Cable) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Cable) -> any
 end
 
 --- A Cable represents a Physics Constraint which joins two Actors with a rope-like visual representation between them.
@@ -2274,6 +2859,14 @@ declare class Cable extends Entity implements Actor, Paintable
     --- @param tile_material number How many times to repeat the material along the length of the cable. Default is 1
     @side(shared)
     function SetRenderingSettings(width: number, num_sides: number, tile_material: number): nil
+    --- Sets whether the cable is visible or not (visuals only, the constraint keeps working)
+    --- @param is_visible boolean Whether the cable is visible or not
+    @side(shared)
+    function SetVisibility(is_visible: boolean): nil
+    --- Returns true if this cable is visible
+    --- @return boolean Whether this cable is visible
+    @side(shared)
+    function IsVisible(): boolean
     --- Gets the Actor attached to Start
     --- @return Actor? Actor attached to Start
     @side(shared)
@@ -2282,6 +2875,42 @@ declare class Cable extends Entity implements Actor, Paintable
     --- @return Actor? Actor attached to End
     @side(shared)
     function GetAttachedEndTo(): Actor?
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof CableEvents>(event_name: K, callback: CableEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof CableEvents>(event_name: K, callback: CableEvents[K]): function
+end
+
+declare interface CanvasEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Canvas) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Canvas) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Canvas, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Called when the Canvas needs to be painted
+    --- 
+    --- You can only call `:Draw...()` methods from inside this event
+    --- @param self Canvas The Canvas that triggered the event
+    --- @param width number Width in pixels
+    --- @param height number Height in pixels
+    Update: (Canvas, number, number) -> any
 end
 
 --- Canvas is an entity which you can draw onto it.
@@ -2414,6 +3043,215 @@ declare class Canvas extends Entity
     --- @param clear_color Color The color to fill the Canvas with
     @side(client)
     function Clear(clear_color: Color): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof CanvasEvents>(event_name: K, callback: CanvasEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof CanvasEvents>(event_name: K, callback: CanvasEvents[K]): function
+end
+
+declare interface CharacterEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Character) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Character) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Character, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Character, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Character, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Character) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Character) -> any
+    --- When Entity has its Health changed, or because took damage or manually set through scripting or respawning
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param old_health number Health before the change
+    --- @param new_health number Health after the change
+    HealthChange: (Character, number, number) -> any
+    --- When Entity Respawns
+    --- @param self Damageable The Damageable that triggered the event
+    Respawn: (Character) -> any
+    --- When Entity Dies
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param last_damage_taken number Damage of the hit that killed it
+    --- @param last_bone_damaged string Bone hit by the last damage
+    --- @param damage_type_reason DamageType Type of the damage that killed it
+    --- @param hit_from_direction Vector Direction the last damage came from
+    --- @param instigator Player? The Player responsible for the death, if any
+    --- @param causer Actor? The object which caused the damage
+    Death: (Character, number, string, DamageType, Vector, Player?, Actor?) -> any
+    --- Triggered when this Entity takes damage
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param damage number Amount of damage taken
+    --- @param bone string Damaged bone
+    --- @param type DamageType Damage Type
+    --- @param from_direction Vector Direction of the damage relative to the damaged actor
+    --- @param instigator Player The player which caused the damage
+    --- @param causer any The object which caused the damage
+    --- @return number Return the multiplier to the final damage. Return `0` to cancel the damage (will still display animations, particles and apply impact forces). The default `1.0`.
+    TakeDamage: (Character, number, string, DamageType, Vector, Player, any) -> number?
+    --- When an Animation Montage Notify begins
+    --- @param self Pawn The Pawn that triggered the event
+    --- @param notify_name string Name of the Animation Notify
+    --- @param animation_name string Name of the Animation Montage that fired the notify
+    --- @param trigger_begin_time number Time in the animation when the notify begins, in seconds
+    --- @param trigger_end_time number Time in the animation when the notify ends, in seconds
+    AnimationBeginNotify: (Character, string, string, number, number) -> any
+    --- When an Animation Montage Notify ends
+    --- @param self Pawn The Pawn that triggered the event
+    --- @param notify_name string Name of the Animation Notify
+    --- @param animation_name string Name of the Animation Montage that fired the notify
+    --- @param trigger_begin_time number Time in the animation when the notify begins, in seconds
+    --- @param trigger_end_time number Time in the animation when the notify ends, in seconds
+    AnimationEndNotify: (Character, string, string, number, number) -> any
+    --- When this Pawn is possessed by a Player
+    --- @param self Pawn The Pawn that triggered the event
+    --- @param player Player The Player
+    Possess: (Character, Player) -> any
+    --- When this Pawn is unpossessed by a Player
+    --- @param self Pawn The Pawn that triggered the event
+    --- @param old_player Player The Player that was possessing this Pawn
+    UnPossess: (Character, Player) -> any
+    --- Called when AI reaches its destination, or when it fails
+    --- @param self Pawn The Pawn that triggered the event
+    --- @param succeeded boolean Whether it reached the destination
+    MoveComplete: (Character, boolean) -> any
+    --- Triggered when the Character effectively attacks with a Melee
+    --- @param self Character The Character that triggered the event
+    --- @param melee Melee The Melee
+    Attack: (Character, Melee) -> any
+    --- When Character drops the currently picked up Pickable
+    --- @param self Character The Character that triggered the event
+    --- @param object Pickable The Pickable being dropped
+    --- @param triggered_by_player boolean Whether the Player dropped it by input, instead of by scripting
+    Drop: (Character, Pickable, boolean) -> any
+    --- When Character enters a vehicle
+    --- @param self Character The Character that triggered the event
+    --- @param vehicle Vehicle The Vehicle
+    --- @param seat_index number The seat entered, 0 is the driver seat
+    EnterVehicle: (Character, Vehicle, number) -> any
+    --- Triggered when a Character attempts to enter a vehicle
+    --- @param self Character The Character that triggered the event
+    --- @param vehicle Vehicle The Vehicle
+    --- @param seat_index number The seat it is trying to enter, 0 is the driver seat
+    --- @return boolean Return `false` to prevent it
+    AttemptEnterVehicle: (Character, Vehicle, number) -> boolean?
+    --- Called when FallingMode changes
+    --- @param self Character The Character that triggered the event
+    --- @param old_state FallingMode The previous Falling Mode
+    --- @param new_state FallingMode The new Falling Mode
+    FallingModeChange: (Character, FallingMode, FallingMode) -> any
+    --- When Character fires a Weapon
+    --- @param self Character The Character that triggered the event
+    --- @param weapon Weapon The Weapon
+    Fire: (Character, Weapon) -> any
+    --- Called when GaitMode changes
+    --- @param self Character The Character that triggered the event
+    --- @param old_state GaitMode The previous Gait Mode
+    --- @param new_state GaitMode The new Gait Mode
+    GaitModeChange: (Character, GaitMode, GaitMode) -> any
+    --- When Character grabs up a Prop
+    --- @param self Character The Character that triggered the event
+    --- @param prop Prop The Prop
+    GrabProp: (Character, Prop) -> any
+    --- When Character highlights/looks at a Prop or a Pickable
+    --- @param self Character The Character that triggered the event
+    --- @param is_highlighted boolean Whether the object is being highlighted or not
+    --- @param object Prop | Pickable The Prop or Pickable being highlighted
+    Highlight: (Character, boolean, Prop | Pickable) -> any
+    --- Triggered when a Character interacts with a Prop or Pickable
+    --- @param self Character The Character that triggered the event
+    --- @param object Prop | Pickable The Prop or Pickable being interacted with
+    --- @return boolean Return `false` to prevent it
+    Interact: (Character, Prop | Pickable) -> boolean?
+    --- When Character leaves a vehicle
+    --- @param self Character The Character that triggered the event
+    --- @param vehicle Vehicle The Vehicle
+    --- @param seat_index number The seat it left, 0 is the driver seat
+    LeaveVehicle: (Character, Vehicle, number) -> any
+    --- Triggered when this Character attempts to leave a vehicle
+    --- @param self Character The Character that triggered the event
+    --- @param vehicle Vehicle The Vehicle
+    --- @return boolean Return `false` to prevent it
+    AttemptLeaveVehicle: (Character, Vehicle) -> boolean?
+    --- When Character picks up anything
+    --- @param self Character The Character that triggered the event
+    --- @param object Pickable The Pickable being picked up
+    PickUp: (Character, Pickable) -> any
+    --- When Character punches
+    --- @param self Character The Character that triggered the event
+    Punch: (Character) -> any
+    --- When Character enters or leaves ragdoll
+    --- @param self Character The Character that triggered the event
+    --- @param old_state boolean The previous boolean
+    --- @param new_state boolean The new boolean
+    RagdollModeChange: (Character, boolean, boolean) -> any
+    --- Triggered when this Character attempts to reload
+    --- @param self Character The Character that triggered the event
+    --- @param weapon Weapon The Weapon
+    --- @return boolean Return `false` to prevent it
+    AttemptReload: (Character, Weapon) -> boolean?
+    --- When Character reloads a weapon
+    --- @param self Character The Character that triggered the event
+    --- @param weapon Weapon The Weapon
+    --- @param ammo_to_reload number How many bullets are being reloaded
+    Reload: (Character, Weapon, number) -> any
+    --- Called when StanceMode changes
+    --- @param self Character The Character that triggered the event
+    --- @param old_state StanceMode The previous Stance Mode
+    --- @param new_state StanceMode The new Stance Mode
+    StanceModeChange: (Character, StanceMode, StanceMode) -> any
+    --- Called when Swimming Mode changes
+    --- @param self Character The Character that triggered the event
+    --- @param old_state SwimmingMode The previous Swimming Mode
+    --- @param new_state SwimmingMode The new Swimming Mode
+    SwimmingModeChange: (Character, SwimmingMode, SwimmingMode) -> any
+    --- When Character drops a Prop
+    --- @param self Character The Character that triggered the event
+    --- @param prop Prop The Prop
+    UnGrabProp: (Character, Prop) -> any
+    --- When Character changes its View Mode
+    --- @param self Character The Character that triggered the event
+    --- @param old_state ViewMode The previous View Mode
+    --- @param new_state ViewMode The new View Mode
+    ViewModeChange: (Character, ViewMode, ViewMode) -> any
+    --- Called when Weapon Aim Mode changes
+    --- @param self Character The Character that triggered the event
+    --- @param old_state AimMode The previous Aim Mode
+    --- @param new_state AimMode The new Aim Mode
+    WeaponAimModeChange: (Character, AimMode, AimMode) -> any
+    --- Triggered when a Character presses the use button for a Pickable (i.e. clicks left mouse button with this equipped)
+    --- @param self Character The Character that used it
+    --- @param pickable Pickable The Pickable which has just been used
+    PullUse: (Character, Pickable) -> any
+    --- Triggered when a Character releases the use button for a Pickable (i.e. releases left mouse button with this equipped)
+    --- @param self Character The Character that stopped using it
+    --- @param pickable Pickable The Pickable which has just stopped being used
+    ReleaseUse: (Character, Pickable) -> any
 end
 
 --- Characters represents Actors which can be possessed, can move and interact with world. They are the default Skeletal Mesh Character built for nanos world.
@@ -2542,9 +3380,9 @@ declare class Character extends Entity implements Actor, Paintable, Damageable, 
     @side(server)
     function SetCanDeployParachute(can_deploy_parachute: boolean): nil
     --- Changes the Death sound when Character dies
-    --- @param sound_asset string The new Death sound when Character dies
+    --- @param sound_asset string The new Death sound when Character dies, pass nil or an empty string for no sound
     @side(server)
-    function SetDeathSound(sound_asset: string): nil
+    function SetDeathSound(sound_asset: string?): nil
     --- Set the Fall Damage multiplier taken when falling from High places
     --- @param damage number Default is 10
     @side(server)
@@ -2589,23 +3427,6 @@ declare class Character extends Entity implements Actor, Paintable, Damageable, 
     --- @param skeletal_mesh_asset string The new Skeletal Mesh asset
     @side(server)
     function SetMesh(skeletal_mesh_asset: string): nil
-    --- Sets the value of a Morph Target
-    --- @param name string Morph Target Name
-    --- @param value number The Morph Target weight, usually from 0 to 1
-    @side(shared)
-    function SetMorphTarget(name: string, value: number): nil
-    --- Returns the value of a Morph Target
-    --- @param name string Morph Target Name
-    --- @return number value of the Morph Target
-    @side(shared)
-    function GetMorphTarget(name: string): number
-    --- Clear all Morph Target that are set to this Mesh
-    @side(shared)
-    function ClearMorphTargets(): nil
-    --- Returns a table with all morph targets available
-    --- @return string[] table with all morph targets available
-    @side(client)
-    function GetAllMorphTargetNames(): string[]
     --- Applies the physical animation settings to the body given
     --- @param bone string The body we will be driving
     --- @param include_self boolean Whether to modify the given body
@@ -2626,13 +3447,13 @@ declare class Character extends Entity implements Actor, Paintable, Damageable, 
     @side(server)
     function SetInputEnabled(is_enabled: boolean): nil
     --- Changes the texture of the Character's parachute
-    --- @param texture string The new Parachute Texture
+    --- @param texture string The new Parachute Texture, pass nil or an empty string to restore the default Texture
     @side(server)
-    function SetParachuteTexture(texture: string): nil
+    function SetParachuteTexture(texture: string?): nil
     --- Changes the Pain sound when Character takes damage
-    --- @param sound_asset string The new Pain sound when Character takes damage
+    --- @param sound_asset string The new Pain sound when Character takes damage, pass nil or an empty string for no sound
     @side(server)
-    function SetPainSound(sound_asset: string): nil
+    function SetPainSound(sound_asset: string?): nil
     --- Set the Punch Damage this Character will apply on others
     --- @param punch_damage number Default is 15
     @side(server)
@@ -2653,10 +3474,6 @@ declare class Character extends Entity implements Actor, Paintable, Damageable, 
     --- @param stance_mode StanceMode The new Stance Mode
     @side(server)
     function SetStanceMode(stance_mode: StanceMode): nil
-    --- Sets a Team which will disable damaging same Team Members
-    --- @param team number 0 is neutral and default
-    @side(server)
-    function SetTeam(team: number): nil
     --- Sets the View Mode (first person, third person or top down)
     --- @param view_mode ViewMode The new View Mode
     function SetViewMode(view_mode: ViewMode): nil
@@ -2770,10 +3587,6 @@ declare class Character extends Entity implements Actor, Paintable, Damageable, 
     --- @return SwimmingMode Swimming Mode
     @side(shared)
     function GetSwimmingMode(): SwimmingMode
-    --- Gets the Team of this Character
-    --- @return number The Team, 0 means no team
-    @side(shared)
-    function GetTeam(): number
     --- Gets the entered Vehicle
     --- @return Vehicle? Entered Vehicle
     @side(shared)
@@ -2791,9 +3604,123 @@ declare class Character extends Entity implements Actor, Paintable, Damageable, 
     @side(shared)
     function GetWeaponAimMode(): AimMode
     --- Sets the Physics Asset for the Character
-    --- @param physics_asset string The new Physics Asset for the Character
+    --- @param physics_asset string The new Physics Asset for the Character, pass nil or an empty string to restore the Mesh's own Physics Asset
     @side(server)
-    function SetPhysicsAsset(physics_asset: string): nil
+    function SetPhysicsAsset(physics_asset: string?): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof CharacterEvents>(event_name: K, callback: CharacterEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof CharacterEvents>(event_name: K, callback: CharacterEvents[K]): function
+end
+
+declare interface CharacterSimpleEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (CharacterSimple) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (CharacterSimple) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (CharacterSimple, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (CharacterSimple, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (CharacterSimple, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (CharacterSimple) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (CharacterSimple) -> any
+    --- When Entity has its Health changed, or because took damage or manually set through scripting or respawning
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param old_health number Health before the change
+    --- @param new_health number Health after the change
+    HealthChange: (CharacterSimple, number, number) -> any
+    --- When Entity Respawns
+    --- @param self Damageable The Damageable that triggered the event
+    Respawn: (CharacterSimple) -> any
+    --- When Entity Dies
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param last_damage_taken number Damage of the hit that killed it
+    --- @param last_bone_damaged string Bone hit by the last damage
+    --- @param damage_type_reason DamageType Type of the damage that killed it
+    --- @param hit_from_direction Vector Direction the last damage came from
+    --- @param instigator Player? The Player responsible for the death, if any
+    --- @param causer Actor? The object which caused the damage
+    Death: (CharacterSimple, number, string, DamageType, Vector, Player?, Actor?) -> any
+    --- Triggered when this Entity takes damage
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param damage number Amount of damage taken
+    --- @param bone string Damaged bone
+    --- @param type DamageType Damage Type
+    --- @param from_direction Vector Direction of the damage relative to the damaged actor
+    --- @param instigator Player The player which caused the damage
+    --- @param causer any The object which caused the damage
+    --- @return number Return the multiplier to the final damage. Return `0` to cancel the damage (will still display animations, particles and apply impact forces). The default `1.0`.
+    TakeDamage: (CharacterSimple, number, string, DamageType, Vector, Player, any) -> number?
+    --- When an Animation Montage Notify begins
+    --- @param self Pawn The Pawn that triggered the event
+    --- @param notify_name string Name of the Animation Notify
+    --- @param animation_name string Name of the Animation Montage that fired the notify
+    --- @param trigger_begin_time number Time in the animation when the notify begins, in seconds
+    --- @param trigger_end_time number Time in the animation when the notify ends, in seconds
+    AnimationBeginNotify: (CharacterSimple, string, string, number, number) -> any
+    --- When an Animation Montage Notify ends
+    --- @param self Pawn The Pawn that triggered the event
+    --- @param notify_name string Name of the Animation Notify
+    --- @param animation_name string Name of the Animation Montage that fired the notify
+    --- @param trigger_begin_time number Time in the animation when the notify begins, in seconds
+    --- @param trigger_end_time number Time in the animation when the notify ends, in seconds
+    AnimationEndNotify: (CharacterSimple, string, string, number, number) -> any
+    --- When this Pawn is possessed by a Player
+    --- @param self Pawn The Pawn that triggered the event
+    --- @param player Player The Player
+    Possess: (CharacterSimple, Player) -> any
+    --- When this Pawn is unpossessed by a Player
+    --- @param self Pawn The Pawn that triggered the event
+    --- @param old_player Player The Player that was possessing this Pawn
+    UnPossess: (CharacterSimple, Player) -> any
+    --- Called when AI reaches its destination, or when it fails
+    --- @param self Pawn The Pawn that triggered the event
+    --- @param succeeded boolean Whether it reached the destination
+    MoveComplete: (CharacterSimple, boolean) -> any
+    --- Event fired when the character has just started jumping
+    --- @param self CharacterSimple The CharacterSimple that jumped
+    Jump: (CharacterSimple) -> any
+    --- Called when Character crouches
+    --- @param self CharacterSimple The CharacterSimple that started crouching
+    StartCrouch: (CharacterSimple) -> any
+    --- Called when Character stops crouching
+    --- @param self CharacterSimple The CharacterSimple that stopped crouching
+    EndCrouch: (CharacterSimple) -> any
+    --- Called upon landing when falling
+    --- @param self CharacterSimple The CharacterSimple that landed
+    Land: (CharacterSimple) -> any
+    --- Called when the Character movement mode changes
+    --- @param self CharacterSimple The CharacterSimple that changed movement mode
+    --- @param old_mode number Previous movement mode
+    --- @param new_mode number New movement mode
+    MovementModeChange: (CharacterSimple, number, number) -> any
 end
 
 --- CharacterSimple is a simpler Character implementation with basic Movement implementation. Aimed for custom NPCs or basic Pawns.
@@ -2804,8 +3731,8 @@ declare class CharacterSimple extends Entity implements Actor, Paintable, Damage
     --- @param mesh_asset string | string The new Skeletal or Static Mesh asset
     function SetMesh(mesh_asset: string | string): nil
     --- Sets the Physics Asset for the Character
-    --- @param physics_asset string The new Physics Asset for the Character
-    function SetPhysicsAsset(physics_asset: string): nil
+    --- @param physics_asset string The new Physics Asset for the Character, pass nil or an empty string to restore the Mesh's own Physics Asset
+    function SetPhysicsAsset(physics_asset: string?): nil
     --- Plays an Animation Montage on this character
     --- @param animation_path string The Animation asset to play
     --- @param slot_name string The Animation Slot to play it on
@@ -2836,7 +3763,8 @@ declare class CharacterSimple extends Entity implements Actor, Paintable, Damage
     --- @param max_walk_speed number Max speed while walking
     --- @param max_walk_speed_crouched number Max speed while crouched
     --- @param max_fly_speed number Max speed while flying
-    function SetSpeedSettings(max_walk_speed: number?, max_walk_speed_crouched: number?, max_fly_speed: number?): nil
+    --- @param max_swim_speed number Max speed while swimming
+    function SetSpeedSettings(max_walk_speed: number?, max_walk_speed_crouched: number?, max_fly_speed: number?, max_swim_speed: number?): nil
     --- Sets the Pawn Settings of this Character
     --- @param use_controller_rotation_pitch boolean Whether the Pawn follows the controller Pitch
     --- @param use_controller_rotation_yaw boolean Whether the Pawn follows the controller Yaw
@@ -2884,6 +3812,18 @@ declare class CharacterSimple extends Entity implements Actor, Paintable, Damage
     --- @return boolean Whether this Character is crouching
     @side(shared)
     function IsCrouching(): boolean
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof CharacterSimpleEvents>(event_name: K, callback: CharacterSimpleEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof CharacterSimpleEvents>(event_name: K, callback: CharacterSimpleEvents[K]): function
 end
 
 --- The Database entity provides programmers a way to access SQL databases easily through scripting.
@@ -2922,6 +3862,38 @@ declare class Database
     function Select(query: string, ...: any): (any[], string)
 end
 
+declare interface DecalEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Decal) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Decal) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Decal, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Decal, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Decal, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Decal) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Decal) -> any
+end
+
 --- Decals are Materials that are projected onto meshes in your level, including Static Meshes and Skeletal Meshes.
 @overrideCtor("$class($args)")
 declare class Decal extends Entity implements Actor, Paintable
@@ -2938,6 +3910,18 @@ declare class Decal extends Entity implements Actor, Paintable
     --- @param duration number Duration of the fade-out in seconds
     --- @param destroy_after_fade_out boolean Whether to destroy the Decal after fade-out finishes
     function SetFadeOut(start_delay: number, duration: number, destroy_after_fade_out: boolean?): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof DecalEvents>(event_name: K, callback: DecalEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof DecalEvents>(event_name: K, callback: DecalEvents[K]): function
 end
 
 --- A File represents an entry to a system file.
@@ -3065,6 +4049,44 @@ declare class File
     static function GetFullPath(path: string): string
 end
 
+declare interface GizmoEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Gizmo) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Gizmo) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Gizmo, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Gizmo, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Gizmo, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Gizmo) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Gizmo) -> any
+    --- Triggered when the Gizmo has its transform updated
+    --- @param self Gizmo The Gizmo itself
+    --- @param location Vector New Gizmo location
+    --- @param rotation Rotator New Gizmo rotation
+    --- @param scale Vector New Gizmo scale
+    Transform: (Gizmo, Vector, Rotator, Vector) -> any
+end
+
 --- A tool to transform objects at runtime.
 @overrideCtor("$class($args)")
 @side(client)
@@ -3104,6 +4126,87 @@ declare class Gizmo extends Entity implements Actor
     --- @param scale_grid_size number Scale snap size
     @side(client)
     function SetSnapSettings(location_grid_size: number, rotation_grid_size: number, scale_grid_size: number): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof GizmoEvents>(event_name: K, callback: GizmoEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof GizmoEvents>(event_name: K, callback: GizmoEvents[K]): function
+end
+
+declare interface GrenadeEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Grenade) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Grenade) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Grenade, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Grenade, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Grenade, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Grenade) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Grenade) -> any
+    --- When a Character drops this Pickable
+    --- @param self Pickable The Pickable which has been dropped
+    --- @param character Character The Character that dropped it
+    --- @param was_triggered_by_player boolean If the Player actively pressed the Drop binding to drop
+    Drop: (Grenade, Character, boolean) -> any
+    --- When this Pickable hits something
+    --- @param self Pickable The Actor that was hit
+    --- @param impact_force number The intensity of the hit normalized by the Pickable's weight
+    --- @param normal_impulse Vector The impulse direction of the hit
+    --- @param impact_location Vector The world space location of the impact
+    --- @param velocity Vector The Pickable's velocity at the moment it hit
+    --- @param other_actor Actor? The other actor that hit this Pickable
+    Hit: (Grenade, number, Vector, Vector, Vector, Actor?) -> any
+    --- Triggered when a Character interacts with this Pickable (i.e. tries to pick it up)
+    --- @param self Pickable The Pickable that just got interacted with
+    --- @param character Character The Character that interacted with it
+    --- @return boolean Return `false` to prevent the interaction
+    Interact: (Grenade, Character) -> boolean?
+    --- Triggered When a Character picks this up
+    --- @param self Pickable The Pickable that just got picked up
+    --- @param character Character The Character that picked it up
+    PickUp: (Grenade, Character) -> any
+    --- Triggered when a Character presses the use button for this Pickable (i.e. clicks left mouse button with this equipped)
+    --- @param self Pickable The Pickable which has just been used
+    --- @param character Character The Character that used it
+    PullUse: (Grenade, Character) -> any
+    --- Triggered when a Character releases the use button for this Pickable (i.e. releases left mouse button with this equipped)
+    --- @param self Pickable The Pickable which has just stopped being used
+    --- @param character Character The Character that stopped using it
+    ReleaseUse: (Grenade, Character) -> any
+    --- Triggered when the grenade has exploded
+    --- @param self Grenade The grenade which exploded
+    Explode: (Grenade) -> any
+    --- Triggered when the grenade has been thrown
+    --- @param self Grenade The grenade which exploded
+    --- @param handler Character The Character which has thrown it
+    Throw: (Grenade, Character) -> any
 end
 
 --- Grenades are Pickables which Characters can grab and throw. It explodes after X seconds after thrown, causing damage around.
@@ -3157,6 +4260,50 @@ declare class Grenade extends Entity implements Actor, Paintable, Pickable
     --- @return number The throw force
     @side(shared)
     function GetThrowForce(): number
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof GrenadeEvents>(event_name: K, callback: GrenadeEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof GrenadeEvents>(event_name: K, callback: GrenadeEvents[K]): function
+end
+
+declare interface InstancedStaticMeshEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (InstancedStaticMesh) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (InstancedStaticMesh) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (InstancedStaticMesh, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (InstancedStaticMesh, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (InstancedStaticMesh, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (InstancedStaticMesh) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (InstancedStaticMesh) -> any
 end
 
 --- An Instanced Static Mesh entity allows spawning a mesh that can have multiple instances efficiently rendered.
@@ -3198,6 +4345,50 @@ declare class InstancedStaticMesh extends Entity implements Actor, Paintable
     function GetInstanceCount(): number
     --- Removes all instances.
     function ClearInstances(): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof InstancedStaticMeshEvents>(event_name: K, callback: InstancedStaticMeshEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof InstancedStaticMeshEvents>(event_name: K, callback: InstancedStaticMeshEvents[K]): function
+end
+
+declare interface LightEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Light) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Light) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Light, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Light, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Light, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Light) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Light) -> any
 end
 
 --- A Light represents a Lighting source.
@@ -3241,6 +4432,84 @@ declare class Light extends Entity implements Actor
     --- @return Color The light color
     @side(shared)
     function GetColor(): Color
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof LightEvents>(event_name: K, callback: LightEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof LightEvents>(event_name: K, callback: LightEvents[K]): function
+end
+
+declare interface MeleeEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Melee) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Melee) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Melee, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Melee, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Melee, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Melee) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Melee) -> any
+    --- When a Character drops this Pickable
+    --- @param self Pickable The Pickable which has been dropped
+    --- @param character Character The Character that dropped it
+    --- @param was_triggered_by_player boolean If the Player actively pressed the Drop binding to drop
+    Drop: (Melee, Character, boolean) -> any
+    --- When this Pickable hits something
+    --- @param self Pickable The Actor that was hit
+    --- @param impact_force number The intensity of the hit normalized by the Pickable's weight
+    --- @param normal_impulse Vector The impulse direction of the hit
+    --- @param impact_location Vector The world space location of the impact
+    --- @param velocity Vector The Pickable's velocity at the moment it hit
+    --- @param other_actor Actor? The other actor that hit this Pickable
+    Hit: (Melee, number, Vector, Vector, Vector, Actor?) -> any
+    --- Triggered when a Character interacts with this Pickable (i.e. tries to pick it up)
+    --- @param self Pickable The Pickable that just got interacted with
+    --- @param character Character The Character that interacted with it
+    --- @return boolean Return `false` to prevent the interaction
+    Interact: (Melee, Character) -> boolean?
+    --- Triggered When a Character picks this up
+    --- @param self Pickable The Pickable that just got picked up
+    --- @param character Character The Character that picked it up
+    PickUp: (Melee, Character) -> any
+    --- Triggered when a Character presses the use button for this Pickable (i.e. clicks left mouse button with this equipped)
+    --- @param self Pickable The Pickable which has just been used
+    --- @param character Character The Character that used it
+    PullUse: (Melee, Character) -> any
+    --- Triggered when a Character releases the use button for this Pickable (i.e. releases left mouse button with this equipped)
+    --- @param self Pickable The Pickable which has just stopped being used
+    --- @param character Character The Character that stopped using it
+    ReleaseUse: (Melee, Character) -> any
+    --- Triggered when the Character effectively attacks with this Melee
+    --- @param self Melee The Melee that triggered the event
+    --- @param handler Character The Character attacking
+    Attack: (Melee, Character) -> any
 end
 
 --- A Melee represents an Entity which can be Pickable by a Character and can be used to melee attack, Characters can hold it with hands with pre-defined handling modes.
@@ -3258,15 +4527,15 @@ declare class Melee extends Entity implements Actor, Paintable, Pickable
     function ClearAnimationsCharacterUse(): nil
     --- Sets the Sound when hitting something
     --- @param surface_type SurfaceType The surface to apply the sound. Use `SurfaceType.Default` to be the default to all non defined surfaces. Note: Surfaces Water and Flesh already have default sounds and must be explicitly overridden
-    --- @param asset_path string The Sound used when attacking
+    --- @param asset_path string The Sound used when attacking, pass nil or an empty string for no sound
     --- @param volume number Volume multiplier
     --- @param pitch number Pitch multiplier
     @side(shared)
-    function SetImpactSound(surface_type: SurfaceType, asset_path: string, volume: number?, pitch: number?): nil
+    function SetImpactSound(surface_type: SurfaceType, asset_path: string?, volume: number?, pitch: number?): nil
     --- Sets the Sound when attacking
-    --- @param asset_path string The Sound used when attacking
+    --- @param asset_path string The Sound used when attacking, pass nil or an empty string for no sound
     @side(shared)
-    function SetSoundUse(asset_path: string): nil
+    function SetSoundUse(asset_path: string?): nil
     --- Sets the Base Damage
     --- @param damage number The Base Damage value
     @side(server)
@@ -3296,6 +4565,50 @@ declare class Melee extends Entity implements Actor, Paintable, Pickable
     --- @return number Cooldown between usages
     @side(shared)
     function GetCooldown(): number
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof MeleeEvents>(event_name: K, callback: MeleeEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof MeleeEvents>(event_name: K, callback: MeleeEvents[K]): function
+end
+
+declare interface ParticleEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Particle) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Particle) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Particle, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Particle, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Particle, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Particle) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Particle) -> any
 end
 
 --- Class to spawn Particle Systems used to create effects in the world.
@@ -3358,6 +4671,67 @@ declare class Particle extends Entity implements Actor
     --- @param value WebUI The WebUI value
     @side(client)
     function SetParameterMaterialFromWebUI(parameter: string, value: WebUI): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof ParticleEvents>(event_name: K, callback: ParticleEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof ParticleEvents>(event_name: K, callback: ParticleEvents[K]): function
+end
+
+declare interface PlayerEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Player) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Player) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Player, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when a Player changes its dimension
+    --- @param self Player The Player that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Player, number, number) -> any
+    --- Triggered when Player starts controlling a Pawn (Character)
+    --- @param self Player The Player that triggered the event
+    --- @param pawn Pawn The Pawn being possessed
+    Possess: (Player, Pawn) -> any
+    --- Triggered when Player is ready (the client fully joined, loaded the map and all entities and is ready to play)
+    --- @param self Player The Player that triggered the event
+    Ready: (Player) -> any
+    --- A Pawn (Character) was unpossessed from the Player
+    --- @param self Player The Player that triggered the event
+    --- @param pawn Pawn The Pawn being unpossessed
+    UnPossess: (Player, Pawn) -> any
+    --- When a Player starts/ends using VOIP
+    --- @param self Player The Player that triggered the event
+    --- @param is_talking boolean Whether the Player started (true) or stopped (false) talking
+    --- @return boolean When 'is_talking' is true, return false to prevent this voice stream from playing (on server will prevent for everyone, on client will prevent only for the client)
+    VOIP: (Player, boolean) -> boolean?
+    --- Triggered when a global VOIP channel setting changes for this player
+    --- @param self Player The Player that triggered the event
+    --- @param channel number The channel that changed (1-63)
+    --- @param old_setting VOIPSetting The previous setting
+    --- @param new_setting VOIPSetting The new setting
+    VOIPGlobalChannelSettingChange: (Player, number, VOIPSetting, VOIPSetting) -> any
+    --- Triggered when the local VOIP setting changes for this player
+    --- @param self Player The Player that triggered the event
+    --- @param old_setting VOIPSetting The previous setting
+    --- @param new_setting VOIPSetting The new setting
+    VOIPLocalSettingChange: (Player, VOIPSetting, VOIPSetting) -> any
 end
 
 --- Players are Entities that represents the individual behind the mouse and keyboard. Players are spawned automatically when connected to the server.
@@ -3579,6 +4953,80 @@ declare class Player extends Entity
     --- @return Player? Player by their Steam ID
     @side(server)
     static function GetBySteamID(steam_id: string): Player?
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof PlayerEvents>(event_name: K, callback: PlayerEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof PlayerEvents>(event_name: K, callback: PlayerEvents[K]): function
+end
+
+declare interface PropEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Prop) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Prop) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Prop, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Prop, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Prop, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Prop) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Prop) -> any
+    --- Triggered when Character grabs a Prop
+    --- @param self Prop The prop which was Grabbed
+    --- @param character Character The new Grabber
+    Grab: (Prop, Character) -> any
+    --- Triggered when this Prop hits something
+    --- @param self Prop The prop which has been hit
+    --- @param impact_force number The intensity of the Hit normalized by the Prop's weight
+    --- @param normal_impulse Vector The impulse direction it hits
+    --- @param impact_location Vector The world 3D location of the impact
+    --- @param velocity Vector The Prop velocity at the moment it hits
+    --- @param other_actor Actor? The other actor that hit this Prop
+    Hit: (Prop, number, Vector, Vector, Vector, Actor?) -> any
+    --- When a Character interacts with this Prop (i.e. try to Grab it)
+    --- @param self Prop the object that undergoes an interaction
+    --- @param character Character the character who interacts with the object
+    --- @return boolean Return false to prevent the interaction (i.e. prevent being grabbed)
+    Interact: (Prop, Character) -> boolean?
+    --- When Prop takes Damage
+    --- @param self Prop the object that takes the damage
+    --- @param damage number amount of damage
+    --- @param bone string Damaged bone
+    --- @param type DamageType Damage Type
+    --- @param from_direction Vector Direction of the damage relative to the damaged actor
+    --- @param instigator Player? The player which caused the damage
+    --- @param causer Actor? The object which caused the damage
+    TakeDamage: (Prop, number, string, DamageType, Vector, Player?, Actor?) -> any
+    --- Triggered when this Prop is ungrabbed
+    --- @param self Prop The prop which has been ungrabbed
+    --- @param character Character The old Grabber
+    UnGrab: (Prop, Character) -> any
 end
 
 --- A Prop represents a Dynamic Mesh which can be spawned in the world, can be grabbed around by characters and have physics.
@@ -3626,6 +5074,11 @@ declare class Prop extends Entity implements Actor, Paintable
     --- @return number The mass scale
     @side(shared)
     function GetMassScale(): number
+    --- Sets whether this Prop treats every physics body without it as infinitely heavy, so they push it around but never get pushed back
+    function SetOneWayInteraction(one_way_interaction: boolean): nil
+    --- Gets whether one-way interaction is enabled on this Prop
+    @side(shared)
+    function IsOneWayInteraction(): boolean
     --- Sets the Buoyancy Pontoons used by the Water simulation
     --- @param pontoons any Array with the Pontoons, or nil to restore the automatically calculated ones
     function SetBuoyancyPontoons(pontoons: any?): nil
@@ -3635,6 +5088,53 @@ declare class Prop extends Entity implements Actor, Paintable
     --- @param buoyancy_damp number First order damping on the vertical velocity, reduces bobbing
     --- @param max_buoyant_force number Clamp on the upwards force, stops light objects being launched out of the water
     function SetBuoyancySettings(enabled: boolean?, buoyancy_coefficient: number?, buoyancy_damp: number?, max_buoyant_force: number?): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof PropEvents>(event_name: K, callback: PropEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof PropEvents>(event_name: K, callback: PropEvents[K]): function
+end
+
+declare interface SceneCaptureEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (SceneCapture) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (SceneCapture) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (SceneCapture, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (SceneCapture, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (SceneCapture, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (SceneCapture) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (SceneCapture) -> any
+    --- Triggered when this SceneCapture does an update/renders a frame
+    --- @param self SceneCapture The Scene Capture that triggered the event
+    Capture: (SceneCapture) -> any
 end
 
 --- Scene Capture is an Actor which captures a fully dynamic image of the scene into a Texture. It captures the scene from its view frustum, stores that view as an image, which is then used within a Material.
@@ -3695,6 +5195,50 @@ declare class SceneCapture extends Entity implements Actor
     --- @param deferred boolean If true, performs deferred capture (will capture and trigger Capture event later)
     @side(client)
     function CaptureScene(deferred: boolean?): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof SceneCaptureEvents>(event_name: K, callback: SceneCaptureEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof SceneCaptureEvents>(event_name: K, callback: SceneCaptureEvents[K]): function
+end
+
+declare interface StaticMeshEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (StaticMesh) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (StaticMesh) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (StaticMesh, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (StaticMesh, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (StaticMesh, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (StaticMesh) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (StaticMesh) -> any
 end
 
 --- A StaticMesh entity represents a Mesh which can be spawned in the world, can't move and is more optimized for using in decorating the world.
@@ -3712,6 +5256,50 @@ declare class StaticMesh extends Entity implements Actor, Paintable
     --- @return boolean if this StaticMesh is from the level
     @side(client)
     function IsFromLevel(): boolean
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof StaticMeshEvents>(event_name: K, callback: StaticMeshEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof StaticMeshEvents>(event_name: K, callback: StaticMeshEvents[K]): function
+end
+
+declare interface SoundEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Sound) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Sound) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Sound, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Sound, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Sound, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Sound) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Sound) -> any
 end
 
 --- Class for playing in-game 2D and 3D sounds.
@@ -3806,6 +5394,50 @@ declare class Sound extends Entity implements Actor
     --- @return string The asset path
     @side(client)
     function GetPath(): string
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof SoundEvents>(event_name: K, callback: SoundEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof SoundEvents>(event_name: K, callback: SoundEvents[K]): function
+end
+
+declare interface TextRenderEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (TextRender) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (TextRender) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (TextRender, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (TextRender, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (TextRender, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (TextRender) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (TextRender) -> any
 end
 
 --- A Text Render class is useful for spawning Texts in 3D world.
@@ -3851,6 +5483,50 @@ declare class TextRender extends Entity implements Actor
     --- @param word_size number The new Word Size
     @side(shared)
     function SetWordSize(word_size: number): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof TextRenderEvents>(event_name: K, callback: TextRenderEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof TextRenderEvents>(event_name: K, callback: TextRenderEvents[K]): function
+end
+
+declare interface Text3DEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Text3D) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Text3D) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Text3D, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Text3D, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Text3D, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Text3D) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Text3D) -> any
 end
 
 --- Class to create 3D Text with advanced options
@@ -3888,6 +5564,58 @@ declare class Text3D extends Entity implements Actor, Paintable
     --- @param vertical_alignment Text3DVerticalAlignment Vertical alignment of the text
     @side(shared)
     function SetTextSettings(kerning: number?, line_spacing: number?, word_spacing: number?, horizontal_alignment: Text3DHorizontalAlignment?, vertical_alignment: Text3DVerticalAlignment?): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof Text3DEvents>(event_name: K, callback: Text3DEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof Text3DEvents>(event_name: K, callback: Text3DEvents[K]): function
+end
+
+declare interface TriggerEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Trigger) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Trigger) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Trigger, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Trigger, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Trigger, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Trigger) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Trigger) -> any
+    --- Triggered when something overlaps this Trigger
+    --- @param self Trigger The Trigger entity
+    --- @param entity Actor Any Actor which overlaps
+    BeginOverlap: (Trigger, Actor) -> any
+    --- Triggered when something leaves this Trigger
+    --- @param self Trigger The Trigger entity
+    --- @param entity Actor Any Actor which left the Trigger
+    EndOverlap: (Trigger, Actor) -> any
 end
 
 --- A Trigger class is a utility class to trigger events when any Entity enters an Area.
@@ -3906,6 +5634,116 @@ declare class Trigger extends Entity implements Actor
     --- Sets the filter to Trigger to only overlap specific Classes. Leave it empty for all Classes
     --- @param overlap_only_classes string[] The new filter to Trigger to only overlap specific Classes. Leave it empty for all Classes
     function SetOverlapOnlyClasses(overlap_only_classes: string[]): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof TriggerEvents>(event_name: K, callback: TriggerEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof TriggerEvents>(event_name: K, callback: TriggerEvents[K]): function
+end
+
+declare interface VehicleWheeledEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (VehicleWheeled) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (VehicleWheeled) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (VehicleWheeled, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (VehicleWheeled, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (VehicleWheeled, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (VehicleWheeled) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (VehicleWheeled) -> any
+    --- When Entity has its Health changed, or because took damage or manually set through scripting or respawning
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param old_health number Health before the change
+    --- @param new_health number Health after the change
+    HealthChange: (VehicleWheeled, number, number) -> any
+    --- When Entity Respawns
+    --- @param self Damageable The Damageable that triggered the event
+    Respawn: (VehicleWheeled) -> any
+    --- When Entity Dies
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param last_damage_taken number Damage of the hit that killed it
+    --- @param last_bone_damaged string Bone hit by the last damage
+    --- @param damage_type_reason DamageType Type of the damage that killed it
+    --- @param hit_from_direction Vector Direction the last damage came from
+    --- @param instigator Player? The Player responsible for the death, if any
+    --- @param causer Actor? The object which caused the damage
+    Death: (VehicleWheeled, number, string, DamageType, Vector, Player?, Actor?) -> any
+    --- Triggered when this Entity takes damage
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param damage number Amount of damage taken
+    --- @param bone string Damaged bone
+    --- @param type DamageType Damage Type
+    --- @param from_direction Vector Direction of the damage relative to the damaged actor
+    --- @param instigator Player The player which caused the damage
+    --- @param causer any The object which caused the damage
+    --- @return number Return the multiplier to the final damage. Return `0` to cancel the damage (will still display animations, particles and apply impact forces). The default `1.0`.
+    TakeDamage: (VehicleWheeled, number, string, DamageType, Vector, Player, any) -> number?
+    --- Triggered when Vehicle hits something
+    --- @param self Vehicle The Vehicle that triggered the event
+    --- @param impact_force number The intensity of the Hit normalized by the Vehicle's weight
+    --- @param normal_impulse Vector The impulse direction it hits
+    --- @param impact_location Vector The world 3D location of the impact
+    --- @param velocity Vector The Vehicle velocity at the moment it hits
+    --- @param other_actor Actor? The other actor that hit this Vehicle
+    Hit: (VehicleWheeled, number, Vector, Vector, Vector, Actor?) -> any
+    --- Triggered when the engine starts
+    --- @param self Vehicle The Vehicle that triggered the event
+    EngineStart: (VehicleWheeled) -> any
+    --- Triggered when the engine stops
+    --- @param self Vehicle The Vehicle that triggered the event
+    EngineStop: (VehicleWheeled) -> any
+    --- Triggered when a Character fully enters the Vehicle
+    --- @param self Vehicle The Vehicle that triggered the event
+    --- @param character Character The Character
+    --- @param seat_index number The seat entered, 0 is the driver
+    CharacterEnter: (VehicleWheeled, Character, number) -> any
+    --- Triggered when a Character fully leaves the Vehicle
+    --- @param self Vehicle The Vehicle that triggered the event
+    --- @param character Character The Character
+    --- @param seat_index number The seat left, 0 is the driver
+    CharacterLeave: (VehicleWheeled, Character, number) -> any
+    --- Triggered when a Character attempts to enter the Vehicle
+    --- @param self Vehicle The Vehicle that triggered the event
+    --- @param character Character The Character
+    --- @param seat number The seat index
+    --- @return boolean Return false to prevent it
+    CharacterAttemptEnter: (VehicleWheeled, Character, number) -> boolean?
+    --- Triggered when a Character attempts to leave the Vehicle
+    --- @param self Vehicle The Vehicle that triggered the event
+    --- @param character Character The Character
+    --- @return boolean Return false to prevent it
+    CharacterAttemptLeave: (VehicleWheeled, Character) -> boolean?
+    --- Triggered when Vehicle honks
+    --- @param self VehicleWheeled The Vehicle Wheeled that triggered the event
+    --- @param is_honking boolean Whether it started (true) or stopped (false) honking
+    Horn: (VehicleWheeled, boolean) -> any
 end
 
 --- Vehicles are wheeled entities which Characters can possess and drive.
@@ -3917,9 +5755,9 @@ declare class VehicleWheeled extends Entity implements Actor, Paintable, Damagea
     @side(server)
     function Horn(enable_horn: boolean): nil
     --- Sets the sound asset used by the vehicle horn
-    --- @param sound_asset string The new sound asset used by the vehicle horn
+    --- @param sound_asset string The new sound asset used by the vehicle horn, pass nil or an empty string for no sound
     @side(server)
-    function SetHornSound(sound_asset: string): nil
+    function SetHornSound(sound_asset: string?): nil
     --- Sets if the Engine auto starts when the driver enters the Vehicle
     --- @param auto_start boolean Whether the Engine auto starts when the driver enters the Vehicle
     @side(server)
@@ -4039,6 +5877,112 @@ declare class VehicleWheeled extends Entity implements Actor, Paintable, Damagea
     --- @return boolean Whether the vehicle is in the air
     @side(client)
     function IsInAir(): boolean
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof VehicleWheeledEvents>(event_name: K, callback: VehicleWheeledEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof VehicleWheeledEvents>(event_name: K, callback: VehicleWheeledEvents[K]): function
+end
+
+declare interface VehicleWaterEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (VehicleWater) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (VehicleWater) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (VehicleWater, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (VehicleWater, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (VehicleWater, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (VehicleWater) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (VehicleWater) -> any
+    --- When Entity has its Health changed, or because took damage or manually set through scripting or respawning
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param old_health number Health before the change
+    --- @param new_health number Health after the change
+    HealthChange: (VehicleWater, number, number) -> any
+    --- When Entity Respawns
+    --- @param self Damageable The Damageable that triggered the event
+    Respawn: (VehicleWater) -> any
+    --- When Entity Dies
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param last_damage_taken number Damage of the hit that killed it
+    --- @param last_bone_damaged string Bone hit by the last damage
+    --- @param damage_type_reason DamageType Type of the damage that killed it
+    --- @param hit_from_direction Vector Direction the last damage came from
+    --- @param instigator Player? The Player responsible for the death, if any
+    --- @param causer Actor? The object which caused the damage
+    Death: (VehicleWater, number, string, DamageType, Vector, Player?, Actor?) -> any
+    --- Triggered when this Entity takes damage
+    --- @param self Damageable The Damageable that triggered the event
+    --- @param damage number Amount of damage taken
+    --- @param bone string Damaged bone
+    --- @param type DamageType Damage Type
+    --- @param from_direction Vector Direction of the damage relative to the damaged actor
+    --- @param instigator Player The player which caused the damage
+    --- @param causer any The object which caused the damage
+    --- @return number Return the multiplier to the final damage. Return `0` to cancel the damage (will still display animations, particles and apply impact forces). The default `1.0`.
+    TakeDamage: (VehicleWater, number, string, DamageType, Vector, Player, any) -> number?
+    --- Triggered when Vehicle hits something
+    --- @param self Vehicle The Vehicle that triggered the event
+    --- @param impact_force number The intensity of the Hit normalized by the Vehicle's weight
+    --- @param normal_impulse Vector The impulse direction it hits
+    --- @param impact_location Vector The world 3D location of the impact
+    --- @param velocity Vector The Vehicle velocity at the moment it hits
+    --- @param other_actor Actor? The other actor that hit this Vehicle
+    Hit: (VehicleWater, number, Vector, Vector, Vector, Actor?) -> any
+    --- Triggered when the engine starts
+    --- @param self Vehicle The Vehicle that triggered the event
+    EngineStart: (VehicleWater) -> any
+    --- Triggered when the engine stops
+    --- @param self Vehicle The Vehicle that triggered the event
+    EngineStop: (VehicleWater) -> any
+    --- Triggered when a Character fully enters the Vehicle
+    --- @param self Vehicle The Vehicle that triggered the event
+    --- @param character Character The Character
+    --- @param seat_index number The seat entered, 0 is the driver
+    CharacterEnter: (VehicleWater, Character, number) -> any
+    --- Triggered when a Character fully leaves the Vehicle
+    --- @param self Vehicle The Vehicle that triggered the event
+    --- @param character Character The Character
+    --- @param seat_index number The seat left, 0 is the driver
+    CharacterLeave: (VehicleWater, Character, number) -> any
+    --- Triggered when a Character attempts to enter the Vehicle
+    --- @param self Vehicle The Vehicle that triggered the event
+    --- @param character Character The Character
+    --- @param seat number The seat index
+    --- @return boolean Return false to prevent it
+    CharacterAttemptEnter: (VehicleWater, Character, number) -> boolean?
+    --- Triggered when a Character attempts to leave the Vehicle
+    --- @param self Vehicle The Vehicle that triggered the event
+    --- @param character Character The Character
+    --- @return boolean Return false to prevent it
+    CharacterAttemptLeave: (VehicleWater, Character) -> boolean?
 end
 
 --- VehicleWater are entities which Characters can possess and drive over the water with dynamic physics.
@@ -4054,6 +5998,106 @@ declare class VehicleWater extends Entity implements Actor, Paintable, Damageabl
     --- @param force number The new force of the Engine/Thruster
     @side(server)
     function SetThrustStrength(force: number): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof VehicleWaterEvents>(event_name: K, callback: VehicleWaterEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof VehicleWaterEvents>(event_name: K, callback: VehicleWaterEvents[K]): function
+end
+
+declare interface WeaponEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Weapon) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Weapon) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Weapon, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Weapon, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Weapon, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Weapon) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Weapon) -> any
+    --- When a Character drops this Pickable
+    --- @param self Pickable The Pickable which has been dropped
+    --- @param character Character The Character that dropped it
+    --- @param was_triggered_by_player boolean If the Player actively pressed the Drop binding to drop
+    Drop: (Weapon, Character, boolean) -> any
+    --- When this Pickable hits something
+    --- @param self Pickable The Actor that was hit
+    --- @param impact_force number The intensity of the hit normalized by the Pickable's weight
+    --- @param normal_impulse Vector The impulse direction of the hit
+    --- @param impact_location Vector The world space location of the impact
+    --- @param velocity Vector The Pickable's velocity at the moment it hit
+    --- @param other_actor Actor? The other actor that hit this Pickable
+    Hit: (Weapon, number, Vector, Vector, Vector, Actor?) -> any
+    --- Triggered when a Character interacts with this Pickable (i.e. tries to pick it up)
+    --- @param self Pickable The Pickable that just got interacted with
+    --- @param character Character The Character that interacted with it
+    --- @return boolean Return `false` to prevent the interaction
+    Interact: (Weapon, Character) -> boolean?
+    --- Triggered When a Character picks this up
+    --- @param self Pickable The Pickable that just got picked up
+    --- @param character Character The Character that picked it up
+    PickUp: (Weapon, Character) -> any
+    --- Triggered when a Character presses the use button for this Pickable (i.e. clicks left mouse button with this equipped)
+    --- @param self Pickable The Pickable which has just been used
+    --- @param character Character The Character that used it
+    PullUse: (Weapon, Character) -> any
+    --- Triggered when a Character releases the use button for this Pickable (i.e. releases left mouse button with this equipped)
+    --- @param self Pickable The Pickable which has just stopped being used
+    --- @param character Character The Character that stopped using it
+    ReleaseUse: (Weapon, Character) -> any
+    --- Triggered when Weapon fires (this will be triggered for each shot)
+    --- @param self Weapon The Weapon that triggered the event
+    --- @param shooter Character The Character holding the Weapon, if any
+    Fire: (Weapon, Character) -> any
+    --- Triggered when bullets hit (this will be triggered for each bullet shot)
+    --- @param self Weapon The Weapon that triggered the event
+    --- @param impact_point Vector Location in world space of the bullet hit
+    --- @param impact_normal Vector Normal of the bullet hit in world space
+    --- @param damage number Damage that was applied
+    --- @param actor_hit Actor? Actor entity that was hit, if any
+    BulletHit: (Weapon, Vector, Vector, number, Actor?) -> any
+    --- When a Weapon is reloaded, optionally by a Character
+    --- @param self Weapon The Weapon that triggered the event
+    --- @param character Character The Character
+    --- @param ammo_to_reload number How many bullets were reloaded
+    Reload: (Weapon, Character, number) -> any
+    --- When the Ammo Clip is changed, by reloading or manually setting through scripting
+    --- @param self Weapon The Weapon that triggered the event
+    --- @param old_ammo_clip number The previous clip ammo
+    --- @param new_ammo_clip number The new clip ammo
+    AmmoClipChange: (Weapon, number, number) -> any
+    --- When the Ammo Bag is changed, by reloading or manually setting through scripting
+    --- @param self Weapon The Weapon that triggered the event
+    --- @param old_ammo_bag number The previous bag ammo
+    --- @param new_ammo_bag number The new bag ammo
+    AmmoBagChange: (Weapon, number, number) -> any
 end
 
 --- Weapons are entities with firing, reloading and aiming functionalities.
@@ -4155,17 +6199,17 @@ declare class Weapon extends Entity implements Actor, Paintable, Pickable
     @side(shared)
     function StopAnimation(animation_asset: string?): nil
     --- Sets the Particle of the bullet trail
-    --- @param particle_bullet_trail_asset_path string The Particle asset to spawn for each bullet
+    --- @param particle_bullet_trail_asset_path string The Particle asset to spawn for each bullet, pass nil or an empty string for no particle
     @side(server)
-    function SetParticlesBulletTrail(particle_bullet_trail_asset_path: string): nil
+    function SetParticlesBulletTrail(particle_bullet_trail_asset_path: string?): nil
     --- Sets the Particle of the fire blast at the muzzle
-    --- @param particle_asset_path string The Particle asset to spawn at the muzzle when firing
+    --- @param particle_asset_path string The Particle asset to spawn at the muzzle when firing, pass nil or an empty string for no particle
     @side(server)
-    function SetParticlesBarrel(particle_asset_path: string): nil
+    function SetParticlesBarrel(particle_asset_path: string?): nil
     --- Sets the Particle of the empty shells ejected when firing
-    --- @param particle_shells_asset_path string The Particle asset to spawn when ejecting a shell
+    --- @param particle_shells_asset_path string The Particle asset to spawn when ejecting a shell, pass nil or an empty string for no particle
     @side(server)
-    function SetParticlesShells(particle_shells_asset_path: string): nil
+    function SetParticlesShells(particle_shells_asset_path: string?): nil
     --- Set the offset of Right Hand
     --- @param right_hand_offset Vector The new offset of Right Hand
     @side(server)
@@ -4180,46 +6224,46 @@ declare class Weapon extends Entity implements Actor, Paintable, Pickable
     @side(server)
     function SetSightTransform(sight_location: Vector, sight_rotation: Rotator): nil
     --- Sets the Sound played when trying to fire with an empty clip
-    --- @param sound_dry_asset_path string The Sound asset to play
+    --- @param sound_dry_asset_path string The Sound asset to play, pass nil or an empty string for no sound
     --- @param volume number Volume multiplier
     --- @param pitch number Pitch multiplier
     @side(server)
-    function SetSoundDry(sound_dry_asset_path: string, volume: number?, pitch: number?): nil
+    function SetSoundDry(sound_dry_asset_path: string?, volume: number?, pitch: number?): nil
     --- Sets the Sound played when loading a magazine
-    --- @param sound_load_asset_path string The Sound asset to play
+    --- @param sound_load_asset_path string The Sound asset to play, pass nil or an empty string for no sound
     --- @param volume number Volume multiplier
     --- @param pitch number Pitch multiplier
     @side(server)
-    function SetSoundLoad(sound_load_asset_path: string, volume: number?, pitch: number?): nil
+    function SetSoundLoad(sound_load_asset_path: string?, volume: number?, pitch: number?): nil
     --- Sets the Sound played when unloading a magazine
-    --- @param sound_unload_asset_path string The Sound asset to play
+    --- @param sound_unload_asset_path string The Sound asset to play, pass nil or an empty string for no sound
     --- @param volume number Volume multiplier
     --- @param pitch number Pitch multiplier
     @side(server)
-    function SetSoundUnload(sound_unload_asset_path: string, volume: number?, pitch: number?): nil
+    function SetSoundUnload(sound_unload_asset_path: string?, volume: number?, pitch: number?): nil
     --- Sets the Sound played when zooming
-    --- @param sound_zooming_asset_path string The Sound asset to play
+    --- @param sound_zooming_asset_path string The Sound asset to play, pass nil or an empty string for no sound
     --- @param volume number Volume multiplier
     --- @param pitch number Pitch multiplier
     @side(server)
-    function SetSoundZooming(sound_zooming_asset_path: string, volume: number?, pitch: number?): nil
+    function SetSoundZooming(sound_zooming_asset_path: string?, volume: number?, pitch: number?): nil
     --- Sets the Sound played when firing
-    --- @param sound_fire_asset_path string The Sound asset to play
+    --- @param sound_fire_asset_path string The Sound asset to play, pass nil or an empty string for no sound
     --- @param volume number Volume multiplier
     --- @param pitch number Pitch multiplier
     @side(server)
-    function SetSoundFire(sound_fire_asset_path: string, volume: number?, pitch: number?): nil
+    function SetSoundFire(sound_fire_asset_path: string?, volume: number?, pitch: number?): nil
     --- Sets the Sound played when starting to aim
-    --- @param sound_aim_asset_path string The Sound asset to play
+    --- @param sound_aim_asset_path string The Sound asset to play, pass nil or an empty string for no sound
     --- @param volume number Volume multiplier
     --- @param pitch number Pitch multiplier
     @side(server)
-    function SetSoundAim(sound_aim_asset_path: string, volume: number?, pitch: number?): nil
+    function SetSoundAim(sound_aim_asset_path: string?, volume: number?, pitch: number?): nil
     --- Sound when firing with only having X remaining bullets in the magazine
-    --- @param sound_asset_path string The Sound asset to play
+    --- @param sound_asset_path string The Sound asset to play, pass nil or an empty string for no sound
     --- @param remaining_bullets_count number The amount of remaining bullet to start playing this sound
     @side(server)
-    function SetSoundFireLastBullets(sound_asset_path: string, remaining_bullets_count: number?): nil
+    function SetSoundFireLastBullets(sound_asset_path: string?, remaining_bullets_count: number?): nil
     --- Sets the base spread of this Weapon
     --- @param spread number the higher the less precision - recommended value: 20
     @side(server)
@@ -4366,6 +6410,43 @@ declare class Weapon extends Entity implements Actor, Paintable, Pickable
     --- @return number The base recoil, 0 means no recoil
     @side(shared)
     function GetRecoil(): number
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof WeaponEvents>(event_name: K, callback: WeaponEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof WeaponEvents>(event_name: K, callback: WeaponEvents[K]): function
+end
+
+declare interface WebUIEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (WebUI) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (WebUI) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (WebUI, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when this page fails to load
+    --- @param self WebUI The Web UI that triggered the event
+    --- @param error_code number The CEF error code
+    --- @param message string The error message
+    Fail: (WebUI, number, string) -> any
+    --- Triggered when this page is fully loaded
+    --- @param self WebUI The Web UI that triggered the event
+    Ready: (WebUI) -> any
 end
 
 --- Class for spawning a dynamic Web Browser.
@@ -4484,6 +6565,35 @@ declare class WebUI extends Entity
     --- Closes the Developer Tools for this WebUI, it only works if the Client.SetDebugEnabled() not disabled
     @side(client)
     function CloseDevTools(): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof WebUIEvents>(event_name: K, callback: WebUIEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof WebUIEvents>(event_name: K, callback: WebUIEvents[K]): function
+end
+
+declare interface WidgetEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Widget) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Widget) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Widget, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
 end
 
 --- The Widget class supports spawning Unreal Widgets classes through scripting and manipulate them such as Blueprints!
@@ -4581,6 +6691,50 @@ declare class Widget extends Entity
     --- @param slate_size_rule WidgetSizeRule Size rule for the slot
     @side(client)
     function SetSlotSize(size: number?, slate_size_rule: WidgetSizeRule?): nil
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof WidgetEvents>(event_name: K, callback: WidgetEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof WidgetEvents>(event_name: K, callback: WidgetEvents[K]): function
+end
+
+declare interface Widget3DEvents
+    --- Triggered when an Entity is spawned/created
+    --- @param self Entity The Entity that was spawned
+    Spawn: (Widget3D) -> any
+    --- Triggered when an Entity is destroyed
+    --- @param self Entity The Entity which that was destroyed
+    Destroy: (Widget3D) -> any
+    --- Triggered when an Entity has a value changed with `:SetValue()`
+    --- @param self Entity The Entity that just had a value changed
+    --- @param key string The key used
+    --- @param value any The value that was set
+    ValueChange: (Widget3D, string, any) -> any
+    --- Triggered when a new Class is registered with the Inheriting System
+    --- @param class_ any The inherited Class
+    ClassRegister: (any) -> any
+    --- Triggered when an Actor changes its dimension
+    --- @param self Actor The Actor that triggered the event
+    --- @param old_dimension number The previous dimension
+    --- @param new_dimension number The new dimension
+    DimensionChange: (Widget3D, number, number) -> any
+    --- Triggered when the local Player gets/loses network authority over this actor
+    --- @param self Actor The Actor that triggered the event
+    --- @param is_network_authority boolean Whether the local Player is now the Network Authority of this Actor
+    NetworkAuthorityChange: (Widget3D, boolean) -> any
+    --- Triggered when an Actor enters a water body
+    --- @param self Actor The Actor that triggered the event
+    EnterWater: (Widget3D) -> any
+    --- Triggered when an Actor leaves a water body
+    --- @param self Actor The Actor that triggered the event
+    LeaveWater: (Widget3D) -> any
 end
 
 --- The Widget3D class is the 3D representation of a Widget class spawned in the world.
@@ -4597,6 +6751,18 @@ declare class Widget3D extends Entity implements Actor
     --- @return Widget The Widget
     @side(client)
     function GetWidget(): Widget
+    --- Subscribes to an Event on this specific entity
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    function Subscribe<K extends keyof Widget3DEvents>(event_name: K, callback: Widget3DEvents[K]): function
+    --- Subscribes to an Event for all entities of this Class
+    --- @param event_name string Name of the event to subscribe to
+    --- @param callback any Function to call when the event is triggered
+    --- @return any Callback that was passed (useful for unsubscribing later if your callback is an anonymous function)
+    @side(shared)
+    static function Subscribe<K extends keyof Widget3DEvents>(event_name: K, callback: Widget3DEvents[K]): function
 end
 
 -- ========================================================================
@@ -4796,6 +6962,22 @@ end
 @side(shared)
 declare Assets: Assets__Static
 
+declare interface ChatEvents
+    --- Called when a player submits a message in the chat
+    --- @param message string The message sent by the player
+    --- @param player Player The player who sent the message - on client it will always be the localplayer
+    --- @return boolean Return false to prevent the message from being sent
+    PlayerSubmit: (string, Player) -> boolean?
+    --- Called when a new Chat Message is received, this is also triggered when new messages are sent programatically
+    --- @param message string The message
+    --- @param player Player? The player who sent the message or `nil` if this was called on client side or was sent through code
+    ChatEntry: (string, Player?) -> any
+    --- When player opens the Chat
+    Open: () -> any
+    --- When player closes the Chat
+    Close: () -> any
+end
+
 --- Configure, send and intercept chat messages.
 @side(shared)
 declare interface Chat__Static
@@ -4829,11 +7011,17 @@ declare interface Chat__Static
     --- @param message string The message to send to all Players
     @side(server)
     function BroadcastMessage(message: string): nil
+    --- Submits a chat message as if the Player had typed it in the chat
+    --- @param player Player The player who is sending the message
+    --- @param message string The message
+    --- @return boolean false if a PlayerSubmit handler cancelled the message, true if it was broadcast
+    @side(server)
+    function Submit(player: Player, message: string): boolean
     --- Subscribes to an Event
     --- @param event_name string Event to subscribe to
     --- @param callback any Callback to run on the event occurring
     --- @return any The function callback
-    function Subscribe(event_name: string, callback: any): any
+    function Subscribe<K extends keyof ChatEvents>(event_name: K, callback: ChatEvents[K]): function
     --- Unsubscribes from all subscribed Events in this Class and in this Package, optionally passing the function to unsubscribe only that callback
     --- @param event_name string Event to unsubscribe to
     --- @param callback any Optional callback to specifically unsubscribe to
@@ -4841,6 +7029,34 @@ declare interface Chat__Static
 end
 @side(shared)
 declare Chat: Chat__Static
+
+declare interface ClientEvents
+    --- Called Every Frame. Do not abuse
+    --- @param delta_time number Seconds since the last frame
+    Tick: (number) -> any
+    --- Triggered when any package is loaded
+    --- @param package_name string The package name (its folder name)
+    PackageLoad: (string) -> any
+    --- Triggered when any package is unloaded
+    --- @param package_name string The package name (its folder name)
+    PackageUnload: (string) -> any
+    --- Called when the local player spawns (just after the game has loaded)
+    --- @param local_player Player The local Player
+    SpawnLocalPlayer: (Player) -> any
+    --- Called when the game is focused/unfocused
+    --- @param is_focused boolean If it's focused
+    WindowFocusChange: (boolean) -> any
+    --- Called when the Client language changes
+    --- @param language string The new language code
+    LanguageChange: (string) -> any
+    --- Called when the local player mutes or unmutes their own microphone, either with the VOIP key (on Open Mic) or from the escape menu
+    --- @param is_muted boolean Whether the microphone is now muted
+    VOIPSelfMuteChange: (boolean) -> any
+    --- Triggered when a Value is changed with `Client.SetValue()` or `Server.SetValue()` (for synced values)
+    --- @param key string The key that changed
+    --- @param value any The new value
+    ValueChange: (string, any) -> any
+end
 
 --- Static Class present on Client side.
 @side(client)
@@ -4893,7 +7109,7 @@ declare interface Client__Static
     --- @param event_name string The name of the event
     --- @param callback any The function to be called
     --- @return any the function callback itself
-    function Subscribe(event_name: string, callback: any): any
+    function Subscribe<K extends keyof ClientEvents>(event_name: K, callback: ClientEvents[K]): function
     --- Unsubscribes from all subscribed Events in this Class and in this Package, optionally passing the function to unsubscribe only that callback
     --- @param event_name string The name of the event
     --- @param callback any The function to be called
@@ -4955,6 +7171,16 @@ end
 @side(client)
 declare Client: Client__Static
 
+declare interface ConsoleEvents
+    --- Called when a console command is submitted
+    --- @param text string Text submitted
+    PlayerSubmit: (string) -> any
+    --- Called when a log is received
+    --- @param text string Log Message
+    --- @param type LogType Type of the log
+    LogEntry: (string, LogType) -> any
+end
+
 --- Exposes access to registering Console Commands and Logging messages.
 @side(shared)
 declare interface Console__Static
@@ -4987,7 +7213,7 @@ declare interface Console__Static
     --- @param event_name string Event to subscribe to
     --- @param callback any Callback to run on the event occurring
     --- @return any The function callback
-    function Subscribe(event_name: string, callback: any): any
+    function Subscribe<K extends keyof ConsoleEvents>(event_name: K, callback: ConsoleEvents[K]): function
     --- Unsubscribes from all subscribed Events in this Class and in this Package, optionally passing the function to unsubscribe only that callback
     --- @param event_name string Event to unsubscribe to
     --- @param callback any Optional callback to specifically unsubscribe to
@@ -5212,6 +7438,57 @@ end
 @side(shared)
 declare HTTP: HTTP__Static
 
+declare interface InputEvents
+    --- A key binding has been changed through the settings
+    --- @param binding_name string The keybinding id
+    --- @param key string The new key associated
+    --- @param scale number The scale input (usually 1 or -1)
+    KeyBindingChange: (string, string, number) -> any
+    --- A keyboard key is being pressed
+    --- @param key_name string The key pressed
+    --- @param delta number? The amount depressed in case of this is an Axis input
+    --- @return boolean Return false to block it
+    KeyDown: (string, number?) -> boolean?
+    --- A keyboard key has been pressed
+    --- @param key_name string The key pressed
+    --- @param delta number? The amount depressed in case of this is an Axis input
+    --- @return boolean Return false to block it
+    KeyPress: (string, number?) -> boolean?
+    --- A keyboard key has been released
+    --- @param key_name string The key pressed
+    --- @param delta number? The amount depressed in case of this is an Axis input
+    --- @return boolean Return false to block it
+    KeyUp: (string, number?) -> boolean?
+    --- A mouse button has been pressed / is being pressed
+    --- @param key_name string The key name, e.g. `E` or `LeftMouseButton`
+    --- @param mouse_x number Mouse X position on screen, in pixels
+    --- @param mouse_y number Mouse Y position on screen, in pixels
+    --- @return boolean Return false to block it
+    MouseDown: (string, number, number) -> boolean?
+    --- A mouse button has been released
+    --- @param key_name string The key name, e.g. `E` or `LeftMouseButton`
+    --- @param mouse_x number Mouse X position on screen, in pixels
+    --- @param mouse_y number Mouse Y position on screen, in pixels
+    --- @return boolean Return false to block it
+    MouseUp: (string, number, number) -> boolean?
+    --- When mouse cursor is displayed/hidden
+    --- @param is_enabled boolean Whether the cursor is now displayed
+    MouseEnable: (boolean) -> any
+    --- Called when the mouse moves
+    --- @param cursor_delta_x number Horizontal movement since the last event
+    --- @param cursor_delta_y number Vertical movement since the last event
+    --- @param mouse_x number Mouse X position on screen, in pixels
+    --- @param mouse_y number Mouse Y position on screen, in pixels
+    --- @return boolean Return false to block it
+    MouseMove: (number, number, number, number) -> boolean?
+    --- Called when the mouse scrolls
+    --- @param mouse_x number Mouse X position on screen, in pixels
+    --- @param mouse_y number Mouse Y position on screen, in pixels
+    --- @param delta number Scroll amount, positive when scrolling up and negative when scrolling down
+    --- @return boolean Return false to block it
+    MouseScroll: (number, number, number) -> boolean?
+end
+
 --- Create custom keybindings and retrieve input information.
 @side(client)
 declare interface Input__Static
@@ -5295,7 +7572,7 @@ declare interface Input__Static
     --- @param event_name string Event to subscribe to
     --- @param callback any Callback to run on the event occurring
     --- @return any The function callback
-    function Subscribe(event_name: string, callback: any): any
+    function Subscribe<K extends keyof InputEvents>(event_name: K, callback: InputEvents[K]): function
     --- Unsubscribes from all subscribed Events in this Class and in this Package, optionally passing the function to unsubscribe only that callback
     --- @param event_name string Event to unsubscribe to
     --- @param callback any Optional callback to specifically unsubscribe to
@@ -5303,6 +7580,25 @@ declare interface Input__Static
 end
 @side(client)
 declare Input: Input__Static
+
+declare interface LevelEvents
+    --- Called when streaming pause begins
+    StreamLevelBeginPause: () -> any
+    --- Called when streaming pause ends
+    StreamLevelEndPause: () -> any
+    --- Called when a Stream Level is loaded
+    --- @param level_name string Name of the Stream Level
+    StreamLevelLoad: (string) -> any
+    --- Called when a Stream Level is unloaded
+    --- @param level_name string Name of the Stream Level
+    StreamLevelUnload: (string) -> any
+    --- Called when a Stream Level is shown
+    --- @param level_name string Name of the Stream Level
+    StreamLevelShow: (string) -> any
+    --- Called when a Stream Level is hidden
+    --- @param level_name string Name of the Stream Level
+    StreamLevelHide: (string) -> any
+end
 
 --- Work with Unreal level in runtime.
 @side(client)
@@ -5332,7 +7628,7 @@ declare interface Level__Static
     --- @param event_name string Event to subscribe to
     --- @param callback any Callback to run on the event occurring
     --- @return any The function callback
-    function Subscribe(event_name: string, callback: any): any
+    function Subscribe<K extends keyof LevelEvents>(event_name: K, callback: LevelEvents[K]): function
     --- Unsubscribes from all subscribed Events in this Class and in this Package, optionally passing the function to unsubscribe only that callback
     --- @param event_name string Event to unsubscribe to
     --- @param callback any Optional callback to specifically unsubscribe to
@@ -5363,6 +7659,16 @@ end
 @side(client)
 declare Navigation: Navigation__Static
 
+declare interface PackageEvents
+    --- Called when this package is loaded
+    Load: () -> any
+    --- Called when this package is unloaded
+    Unload: () -> any
+    --- Called when a file is directly reloaded from the server using Package.ReloadClientFile()
+    --- @param file_path string The file path
+    FileReload: (string) -> any
+end
+
 --- Class which represents the current Package
 @side(shared)
 declare interface Package__Static
@@ -5387,7 +7693,7 @@ declare interface Package__Static
     --- @param event_name string Event to subscribe to
     --- @param callback any Callback to run on the event occurring
     --- @return any The function callback
-    function Subscribe(event_name: string, callback: any): any
+    function Subscribe<K extends keyof PackageEvents>(event_name: K, callback: PackageEvents[K]): function
     --- Unsubscribes from all subscribed Events in this Class and in this Package, optionally passing the function to unsubscribe only that callback
     --- @param event_name string Event to unsubscribe to
     --- @param callback any Optional callback to specifically unsubscribe to
@@ -5485,6 +7791,45 @@ declare interface PostProcess__Static
 end
 @side(client)
 declare PostProcess: PostProcess__Static
+
+declare interface ServerEvents
+    --- Triggered once when the server has started and all packages are loaded
+    Start: () -> any
+    --- Triggered when the server is restarting
+    Restart: () -> any
+    --- Called when the map changes
+    --- @param old_map string The previous map
+    --- @param new_map string The new map
+    ChangeMap: (string, string) -> any
+    --- Called when a player is attempting to connect to the server
+    --- @param ip string IP of the player
+    --- @param player_account_id string Account ID of the player
+    --- @param player_name string Player name
+    --- @param player_steam_id string SteamID of the player
+    PlayerConnect: (string, string, string, string) -> any
+    --- Called when a player is disconnecting from the server
+    --- @param ip string IP of the player
+    --- @param player_account_id string Account ID of the player
+    --- @param player_name string Player name
+    --- @param player_steam_id string SteamID of the player
+    --- @param disconnect_reason string Reason for disconnection
+    PlayerDisconnect: (string, string, string, string, string) -> any
+    --- Triggered when the server is stopping
+    Stop: () -> any
+    --- Triggered every 33ms by default
+    --- @param delta_time number Seconds since the last tick
+    Tick: (number) -> any
+    --- Triggered when any package is loaded
+    --- @param package_name string The package name (its folder name)
+    PackageLoad: (string) -> any
+    --- Triggered when any package is unloaded
+    --- @param package_name string The package name (its folder name)
+    PackageUnload: (string) -> any
+    --- Triggered when a Value is changed with `Server.SetValue()`
+    --- @param key string The key that changed
+    --- @param value any The new value
+    ValueChange: (string, any) -> any
+end
 
 --- Server represents all Server controls in the Server side.
 @side(server)
@@ -5587,7 +7932,7 @@ declare interface Server__Static
     --- @param event_name string The name of the Event
     --- @param callback any Callback function
     --- @return any the function callback itself
-    function Subscribe(event_name: string, callback: any): any
+    function Subscribe<K extends keyof ServerEvents>(event_name: K, callback: ServerEvents[K]): function
     --- Unsubscribes from all subscribed Events in this Class and in this Package, optionally passing the function to unsubscribe only that callback
     --- @param event_name string The name of the Events
     --- @param callback any Callback function
@@ -5682,6 +8027,12 @@ declare interface Sky__Static
     --- Sets the Moon Vertical Offset
     --- @param offset number The new Moon Vertical Offset
     function SetMoonVerticalOffset(offset: number): nil
+    --- Sets the Moon Material Color, which tints the moon texture
+    --- @param color Color The new Moon Material Color
+    function SetMoonMaterialColor(color: Color): nil
+    --- Sets the Moon Light Color, the color of the light the moon casts at night
+    --- @param color Color The new Moon Light Color
+    function SetMoonLightColor(color: Color): nil
     --- Sets the Moon Scale
     --- @param scale number The new Moon Scale
     function SetMoonScale(scale: number): nil
@@ -5717,9 +8068,9 @@ declare interface Sky__Static
     --- The amount of coverage for the cloud layer, from a clear sky to overcast
     --- @param cloud_coverage number From 0 (clear sky) to 10 (overcast)
     function SetCloudCoverage(cloud_coverage: number): nil
-    --- The fogginess of the scene. The impact this has on fog density is scaled from the Fog Density category
-    --- @param fog_percentage number Fog amount, from 0 to 100
-    function SetFog(fog_percentage: number): nil
+    --- The fogginess of the scene. The impact this has on fog density is scaled from the Fog Density category. With weather spawned it also pins the weather's fog to this value, so later weather changes keep it, until called with nil
+    --- @param fog_percentage number? Fog amount, from 0 to 100, or nil to hand the fog back to the weather
+    function SetFog(fog_percentage: number?): nil
     --- A simple contrast boost for the sky material. Cannot affect volumetric clouds
     --- @param contrast number Contrast multiplier of the sky
     function SetContrast(contrast: number): nil
@@ -5767,6 +8118,15 @@ declare interface Steam__Static
     function SetRichPresence(text: string): nil
     --- Triggers a Steam screenshot
     function TriggerScreenshot(): nil
+    --- Opens the Steam Overlay invite dialog, so the player can invite Friends to the current server
+    function OpenInviteDialog(): nil
+    --- Invites a Steam Friend to the current server
+    --- @param steam_id string The SteamID of the Friend to invite
+    --- @return boolean If the invite was sent
+    function InviteFriend(steam_id: string): boolean
+    --- Gets the SteamID of the Friend whose invite or "Join Game" brought this player to the current server
+    --- @return string? The Friend's SteamID, or `nil`
+    function GetJoinedFromFriend(): string?
 end
 @side(client)
 declare Steam: Steam__Static
@@ -5796,6 +8156,11 @@ declare interface Timer__Static
     --- @param timer_id number The Timer ID
     --- @param actor Actor Actor to be bound
     function Bind(timer_id: number, actor: Actor): nil
+    --- Unbinds a Timer from an Actor it was bound to with Timer.Bind, without clearing or resetting the Timer
+    --- @param timer_id number The Timer ID
+    --- @param actor Actor Actor to be unbound
+    --- @return boolean true if the Timer was bound to this Actor and got unbound
+    function Unbind(timer_id: number, actor: Actor): boolean
     --- Checks if a Timer is currently active or waiting to be triggered
     --- @param timer_id number The Timer ID
     --- @return boolean Whether a Timer is currently active or waiting to be triggered
@@ -5906,6 +8271,12 @@ end
 @side(client)
 declare Trace: Trace__Static
 
+declare interface ViewportEvents
+    --- Called when the screen is resized
+    --- @param new_size Vector2D The new screen size
+    Resize: (Vector2D) -> any
+end
+
 --- Work with screen properties and effects.
 @side(client)
 declare interface Viewport__Static
@@ -5955,7 +8326,7 @@ declare interface Viewport__Static
     --- @param event_name string Event to subscribe to
     --- @param callback any Callback to run on the event occurring
     --- @return any The function callback
-    function Subscribe(event_name: string, callback: any): any
+    function Subscribe<K extends keyof ViewportEvents>(event_name: K, callback: ViewportEvents[K]): function
     --- Unsubscribes from all subscribed Events in this Class and in this Package, optionally passing the function to unsubscribe only that callback
     --- @param event_name string Event to unsubscribe to
     --- @param callback any Optional callback to specifically unsubscribe to

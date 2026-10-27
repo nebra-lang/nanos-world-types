@@ -28,6 +28,26 @@ configuration, and drops a minimal `Index.neb` into each side folder.
 **The full API surface** in `src/nanos-world.d.neb`, generated from the official nanos world API
 manifests: classes, static classes, structs, enums, utility classes and the standard libraries.
 
+**Typed events.** Every type with events has an interface listing them, such as
+`CharacterEvents` or `ServerEvents`, and its `Subscribe` takes only those names and a callback
+typed by the event it names. Inherited events are included, with `self` typed as the class
+subscribed on:
+
+```lua
+Character.Subscribe("Death", function(character, last_damage, last_bone, damage_type, hit_from, instigator)
+    -- character: Character, last_damage: number, instigator: Player?
+end)
+
+Server.Subscribe("Tick", function(delta_time)   -- delta_time: number
+end)
+
+Character.Subscribe("Deth", function() end)     -- error: not an event of Character
+```
+
+An event a callback can cancel or change, such as `TakeDamage`, takes its return value as
+optional. Custom events through `Events.Subscribe` and `SubscribeRemote` keep any name, and so
+does `Unsubscribe`.
+
 **Execution sides.** nanos world scripts run on the client, the server, or both. The declarations
 carry `@side(...)` markers, so calling a server-only API from a client file is a compile error
 rather than a runtime nil.
@@ -36,13 +56,13 @@ rather than a runtime nil.
 sits next to the handler:
 
 ```lua
-@CharacterEvent("Damage")
+@CharacterEvent("TakeDamage")
 function onDamage(character: Character, damage: number)
     Console.Log("took " .. tostring(damage))
 end
 ```
 
-That compiles to the handler plus the `Character.Subscribe("Damage", onDamage)` call you would
+That compiles to the handler plus the `Character.Subscribe("TakeDamage", onDamage)` call you would
 otherwise have written by hand. Available annotations: `@Event`, `@PlayerEvent`,
 `@CharacterEvent`, `@EntityEvent`, `@RemoteEvent`, `@Command`, `@ConsoleCommand` and
 `@nanosPackage`.
