@@ -502,6 +502,8 @@ function emitRootClass(klass) {
     const classSide = pickClassSide(klass);
     if (classSide) out.push(`@side(${classSide})`);
 
+    out.push('@overrideInherit("$base.Inherit($name)")');
+    out.push('@overrideCtor("$class($args)")');
     out.push(`declare class ${klass.name} implements ${ROOT_INTERFACE}`);
     const events = eventsInterfaceName(klass.name);
     for (const p of klass.static_properties || []) out.push(emitProperty('    ', p, { isStatic: true }));

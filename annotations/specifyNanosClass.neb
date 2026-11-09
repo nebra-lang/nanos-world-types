@@ -1,0 +1,18 @@
+--- @specifyNanosClass("CustomProp") sets the name a class is registered under in nanos world,
+--- which is its own name otherwise. Two classes on different sides sharing that name are the
+--- same entity to nanos world: one spawned on the server arrives on the client as the other.
+
+export local annotation = {
+    target = "Class",
+    params = {
+        name = { type = "string", required = true }
+    }
+}
+
+export function apply(target, args)
+    if not target.annotations then target.annotations = {} end
+    table.insert(target.annotations, ir.annotation("overrideInherit", {
+        ir.stringLiteral(string.format("$base.Inherit(%q)", args.name))
+    }))
+    return target
+end

@@ -1284,6 +1284,8 @@ declare interface EntityBase
 end
 
 --- Entity is the base for all Classes, and all those entities share the same Methods and Events described in this page.
+@overrideInherit("$base.Inherit($name)")
+@overrideCtor("$class($args)")
 declare class Entity implements EntityBase
     --- Returns a table containing all Entities of the class this is called on
     --- @return Entity[] Copy of table containing all Entities

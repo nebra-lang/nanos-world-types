@@ -67,6 +67,33 @@ otherwise have written by hand. Available annotations: `@Event`, `@PlayerEvent`,
 `@CharacterEvent`, `@EntityEvent`, `@RemoteEvent`, `@Command`, `@ConsoleCommand` and
 `@nanosPackage`.
 
+**Inheriting entities.** A class extending an entity class goes through nanos world's
+[inheriting system](https://docs.nanos-world.com/docs/core-concepts/scripting/inheriting-classes)
+by itself. `extends` becomes `Prop.Inherit("Crate")`, the constructor becomes `Constructor`,
+`super` calls the native methods through `self.Super`, and `new Crate(...)` spawns it:
+
+```lua
+class Crate extends Prop
+    constructor(location: Vector)
+        super(location, new Rotator(), "nanos-world::SM_Cube")
+    end
+
+    function Explode(): nil
+        self:Destroy()
+    end
+end
+```
+
+The class is registered under its own name. `@specifyNanosClass("Name")` sets another one, so a
+class on the server and a class on the client can be the same entity to nanos world while having
+different names and implementations in Nebra:
+
+```lua
+@specifyNanosClass("Crate")
+class ServerCrate extends Prop
+end
+```
+
 ## Regenerating the declarations
 
 The API manifests live in `api/`. When nanos world ships an update, drop the new manifests in and
