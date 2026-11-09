@@ -502,8 +502,9 @@ function emitRootClass(klass) {
     const classSide = pickClassSide(klass);
     if (classSide) out.push(`@side(${classSide})`);
 
-    out.push('@overrideInherit("$base.Inherit($name)")');
+    out.push('@overrideInherit("$base.Inherit($name)", index = "index", newindex = "newindex")');
     out.push('@overrideCtor("$class($args)")');
+    out.push(`@overrideIs('(type($value) == "table" or type($value) == "userdata") and $value.IsA ~= nil and $value:IsA($class)')`);
     out.push(`declare class ${klass.name} implements ${ROOT_INTERFACE}`);
     const events = eventsInterfaceName(klass.name);
     for (const p of klass.static_properties || []) out.push(emitProperty('    ', p, { isStatic: true }));

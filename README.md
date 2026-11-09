@@ -94,6 +94,25 @@ class ServerCrate extends Prop
 end
 ```
 
+`operator []` and `operator []=` become the `index` and `newindex` hooks of the class, and they
+receive the fields the class declares as well, so a typed field can live in the entity's values:
+
+```lua
+class Crate extends Prop
+    weight: number = 5
+
+    operator [](key: string): any
+        return self:GetValue(key, nil)
+    end
+
+    operator []=(key: string, value: any)
+        self:SetValue(key, value)
+    end
+end
+```
+
+`value is Crate`, `instanceof` and type patterns in `match` go through `IsA`.
+
 ## Regenerating the declarations
 
 The API manifests live in `api/`. When nanos world ships an update, drop the new manifests in and
