@@ -2630,6 +2630,15 @@ end
 @side(client)
 declare class Billboard extends Entity implements Actor, Paintable
     constructor(location: Vector, material_asset: string, size: Vector2D?, size_in_screen_space: boolean?)
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Billboard[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Billboard[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Billboard Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Billboard
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -2707,6 +2716,15 @@ declare class Blueprint extends Entity implements Actor, Paintable
     --- @return any the value
     @side(client)
     function GetBlueprintPropertyValue(property_name: string): any
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Blueprint[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Blueprint[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Blueprint Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Blueprint
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -2878,6 +2896,15 @@ declare class Cable extends Entity implements Actor, Paintable
     --- @return Actor? Actor attached to End
     @side(shared)
     function GetAttachedEndTo(): Actor?
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Cable[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Cable[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Cable Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Cable
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -3046,6 +3073,15 @@ declare class Canvas extends Entity
     --- @param clear_color Color The color to fill the Canvas with
     @side(client)
     function Clear(clear_color: Color): nil
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Canvas[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Canvas[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Canvas Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Canvas
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -3610,6 +3646,15 @@ declare class Character extends Entity implements Actor, Paintable, Damageable, 
     --- @param physics_asset string The new Physics Asset for the Character, pass nil or an empty string to restore the Mesh's own Physics Asset
     @side(server)
     function SetPhysicsAsset(physics_asset: string?): nil
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Character[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Character[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Character Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Character
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -3815,6 +3860,15 @@ declare class CharacterSimple extends Entity implements Actor, Paintable, Damage
     --- @return boolean Whether this Character is crouching
     @side(shared)
     function IsCrouching(): boolean
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return CharacterSimple[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): CharacterSimple[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return CharacterSimple Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): CharacterSimple
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -3913,6 +3967,15 @@ declare class Decal extends Entity implements Actor, Paintable
     --- @param duration number Duration of the fade-out in seconds
     --- @param destroy_after_fade_out boolean Whether to destroy the Decal after fade-out finishes
     function SetFadeOut(start_delay: number, duration: number, destroy_after_fade_out: boolean?): nil
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Decal[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Decal[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Decal Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Decal
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -4129,6 +4192,15 @@ declare class Gizmo extends Entity implements Actor
     --- @param scale_grid_size number Scale snap size
     @side(client)
     function SetSnapSettings(location_grid_size: number, rotation_grid_size: number, scale_grid_size: number): nil
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Gizmo[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Gizmo[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Gizmo Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Gizmo
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -4263,6 +4335,15 @@ declare class Grenade extends Entity implements Actor, Paintable, Pickable
     --- @return number The throw force
     @side(shared)
     function GetThrowForce(): number
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Grenade[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Grenade[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Grenade Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Grenade
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -4348,6 +4429,15 @@ declare class InstancedStaticMesh extends Entity implements Actor, Paintable
     function GetInstanceCount(): number
     --- Removes all instances.
     function ClearInstances(): nil
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return InstancedStaticMesh[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): InstancedStaticMesh[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return InstancedStaticMesh Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): InstancedStaticMesh
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -4435,6 +4525,15 @@ declare class Light extends Entity implements Actor
     --- @return Color The light color
     @side(shared)
     function GetColor(): Color
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Light[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Light[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Light Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Light
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -4568,6 +4667,15 @@ declare class Melee extends Entity implements Actor, Paintable, Pickable
     --- @return number Cooldown between usages
     @side(shared)
     function GetCooldown(): number
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Melee[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Melee[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Melee Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Melee
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -4674,6 +4782,15 @@ declare class Particle extends Entity implements Actor
     --- @param value WebUI The WebUI value
     @side(client)
     function SetParameterMaterialFromWebUI(parameter: string, value: WebUI): nil
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Particle[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Particle[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Particle Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Particle
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -4956,6 +5073,15 @@ declare class Player extends Entity
     --- @return Player? Player by their Steam ID
     @side(server)
     static function GetBySteamID(steam_id: string): Player?
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Player[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Player[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Player Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Player
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -5091,6 +5217,15 @@ declare class Prop extends Entity implements Actor, Paintable
     --- @param buoyancy_damp number First order damping on the vertical velocity, reduces bobbing
     --- @param max_buoyant_force number Clamp on the upwards force, stops light objects being launched out of the water
     function SetBuoyancySettings(enabled: boolean?, buoyancy_coefficient: number?, buoyancy_damp: number?, max_buoyant_force: number?): nil
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Prop[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Prop[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Prop Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Prop
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -5198,6 +5333,15 @@ declare class SceneCapture extends Entity implements Actor
     --- @param deferred boolean If true, performs deferred capture (will capture and trigger Capture event later)
     @side(client)
     function CaptureScene(deferred: boolean?): nil
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return SceneCapture[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): SceneCapture[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return SceneCapture Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): SceneCapture
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -5259,6 +5403,15 @@ declare class StaticMesh extends Entity implements Actor, Paintable
     --- @return boolean if this StaticMesh is from the level
     @side(client)
     function IsFromLevel(): boolean
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return StaticMesh[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): StaticMesh[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return StaticMesh Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): StaticMesh
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -5397,6 +5550,15 @@ declare class Sound extends Entity implements Actor
     --- @return string The asset path
     @side(client)
     function GetPath(): string
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Sound[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Sound[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Sound Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Sound
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -5486,6 +5648,15 @@ declare class TextRender extends Entity implements Actor
     --- @param word_size number The new Word Size
     @side(shared)
     function SetWordSize(word_size: number): nil
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return TextRender[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): TextRender[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return TextRender Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): TextRender
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -5567,6 +5738,15 @@ declare class Text3D extends Entity implements Actor, Paintable
     --- @param vertical_alignment Text3DVerticalAlignment Vertical alignment of the text
     @side(shared)
     function SetTextSettings(kerning: number?, line_spacing: number?, word_spacing: number?, horizontal_alignment: Text3DHorizontalAlignment?, vertical_alignment: Text3DVerticalAlignment?): nil
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Text3D[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Text3D[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Text3D Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Text3D
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -5637,6 +5817,15 @@ declare class Trigger extends Entity implements Actor
     --- Sets the filter to Trigger to only overlap specific Classes. Leave it empty for all Classes
     --- @param overlap_only_classes string[] The new filter to Trigger to only overlap specific Classes. Leave it empty for all Classes
     function SetOverlapOnlyClasses(overlap_only_classes: string[]): nil
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Trigger[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Trigger[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Trigger Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Trigger
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -5880,6 +6069,15 @@ declare class VehicleWheeled extends Entity implements Actor, Paintable, Damagea
     --- @return boolean Whether the vehicle is in the air
     @side(client)
     function IsInAir(): boolean
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return VehicleWheeled[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): VehicleWheeled[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return VehicleWheeled Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): VehicleWheeled
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -6001,6 +6199,15 @@ declare class VehicleWater extends Entity implements Actor, Paintable, Damageabl
     --- @param force number The new force of the Engine/Thruster
     @side(server)
     function SetThrustStrength(force: number): nil
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return VehicleWater[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): VehicleWater[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return VehicleWater Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): VehicleWater
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -6413,6 +6620,15 @@ declare class Weapon extends Entity implements Actor, Paintable, Pickable
     --- @return number The base recoil, 0 means no recoil
     @side(shared)
     function GetRecoil(): number
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Weapon[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Weapon[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Weapon Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Weapon
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -6568,6 +6784,15 @@ declare class WebUI extends Entity
     --- Closes the Developer Tools for this WebUI, it only works if the Client.SetDebugEnabled() not disabled
     @side(client)
     function CloseDevTools(): nil
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return WebUI[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): WebUI[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return WebUI Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): WebUI
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -6694,6 +6919,15 @@ declare class Widget extends Entity
     --- @param slate_size_rule WidgetSizeRule Size rule for the slot
     @side(client)
     function SetSlotSize(size: number?, slate_size_rule: WidgetSizeRule?): nil
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Widget[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Widget[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Widget Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Widget
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered
@@ -6754,6 +6988,15 @@ declare class Widget3D extends Entity implements Actor
     --- @return Widget The Widget
     @side(client)
     function GetWidget(): Widget
+    --- Returns a table containing all Entities of the class this is called on
+    --- @return Widget3D[] Copy of table containing all Entities
+    @side(shared)
+    static function GetAll(): Widget3D[]
+    --- Returns a specific Entity of this class at an index
+    --- @param index number The index of the Entity
+    --- @return Widget3D Entity at index
+    @side(shared)
+    static function GetByIndex(index: number): Widget3D
     --- Subscribes to an Event on this specific entity
     --- @param event_name string Name of the event to subscribe to
     --- @param callback any Function to call when the event is triggered

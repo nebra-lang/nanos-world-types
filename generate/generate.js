@@ -358,6 +358,7 @@ let ROOT_SPEC = null;
 // both the Entity class and every mixin share.
 const ROOT_CLASS = 'Entity';
 const ROOT_INTERFACE = 'EntityBase';
+const OWN_TYPED_STATICS = new Set(['GetAll', 'GetByIndex']);
 
 // Reads every class spec and records the names that appear as a secondary
 // base, which are exactly the types that have to become interfaces.
@@ -426,6 +427,18 @@ function emitMixinInterface(klass) {
     return out.join('\n');
 }
 
+// `Character.GetAll()` returns Characters, while the API documents it once on the root class as
+// returning Entities. Every entity class redeclares these with its own type.
+function ownTypedStatics(klass) {
+    return (ROOT_SPEC.static_functions || [])
+        .filter(f => OWN_TYPED_STATICS.has(f.name))
+        .filter(f => !(klass.static_functions || []).some(own => own.name === f.name))
+        .map(f => ({
+            ...f,
+            return: (f.return || []).map(value => ({ ...value, type: value.type.replace('Entity', klass.name) })),
+        }));
+}
+
 function emitClass(klass) {
     if (MIXINS.has(klass.name)) return emitMixinInterface(klass);
     if (klass.name === ROOT_CLASS) return emitRootClass(klass);
@@ -475,6 +488,9 @@ function emitClass(klass) {
     for (const p of klass.static_properties || []) out.push(emitProperty('    ', p, { isStatic: true }));
     for (const f of klass.functions || []) out.push(emitFunction('    ', f));
     for (const f of klass.static_functions || []) out.push(emitFunction('    ', f, { isStatic: true }));
+    if (descendsFromRoot) {
+        for (const f of ownTypedStatics(klass)) out.push(emitFunction('    ', f, { isStatic: true }));
+    }
     for (const op of klass.operators || []) {
         const line = emitOperator('    ', op);
         if (line) out.push(line);
